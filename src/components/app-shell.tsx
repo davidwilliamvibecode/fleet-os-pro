@@ -370,7 +370,13 @@ export function AppShell({ children }: { children?: ReactNode }) {
   }, [location.pathname]);
 
   if (isLoading) return <LoadingNote label="Opening Fleet Command…" />;
-  if (workspace && !org) return <Navigate to="/setup" replace />;
+  // New users (including guests) have no company yet — send them to the setup
+  // wizard. The pathname check is essential: the setup page itself renders this
+  // shell, so an unconditional redirect would loop /setup onto itself forever
+  // and the screen would never paint anything.
+  if (workspace && !org && location.pathname !== "/setup") {
+    return <Navigate to="/setup" replace />;
+  }
 
   const sidebarInner = (
     <div className="flex h-full flex-col">
