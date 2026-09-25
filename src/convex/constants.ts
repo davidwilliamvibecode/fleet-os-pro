@@ -77,5 +77,29 @@ export const COMPANY_ROLES: OrgRole[] = ["owner", "admin"];
 /** Roles that may manage team members. */
 export const TEAM_ROLES: OrgRole[] = ["owner", "admin"];
 
+export const MAINTENANCE_TYPES = [
+  "preventive",
+  "corrective",
+  "inspection",
+  "tires",
+  "oil_change",
+  "brakes",
+  "suspension",
+  "electrical",
+  "bodywork",
+  "other",
+] as const;
+
+export const DOCUMENT_TYPES = [
+  "ipva",
+  "licenciamento",
+  "seguro",
+  "dpvat",
+  "inspecao",
+  "taf",
+  "antt",
+  "outro",
+] as const;
+
 /** Days before a compliance date where it starts showing as "expiring soon". */
 export const EXPIRY_WARNING_DAYS = 45;

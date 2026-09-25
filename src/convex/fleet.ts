@@ -813,6 +813,78 @@ export const dashboard = query({
     const severityRank = { critical: 0, warning: 1, info: 2 } as const;
     attention.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
 
+    // ----------------------------------------------------------------------
+    // Manutenção: serviços vencidos/previstos e documentos/impostos a pagar
+    // ----------------------------------------------------------------------
+    const maintenanceRows = await ctx.db
+      .query("maintenanceRecords")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .take(500);
+    const documentRows = await ctx.db
+      .query("vehicleDocuments")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .take(500);
+    const unitLabel = new Map(vehicles.map((v) => [v._id as string, v.unitNumber]));
+
+    for (const doc of documentRows) {
+      if (doc.status === "pago") continue;
+      const unit = unitLabel.get(doc.vehicleId as string) ?? "?";
+      const days = doc.dueDate ? daysUntil(doc.dueDate) : null;
+      if (doc.status === "atrasado" || (days !== null && days < 0)) {
+        attention.push({
+          id: `${doc._id}-doc-late`,
+          kind: "compliance",
+          severity: "critical",
+          title: `${doc.title} da unidade ${unit} está atrasado`,
+          detail: doc.amount
+            ? `Vencido ${doc.dueDate ? Math.abs(days ?? 0) + " dia(s)" : ""} · valor ${doc.amount.toLocaleString("pt-BR", { style: "currency", currency: org.currency })}`
+            : "Regularize o pagamento o quanto antes",
+          href: `/vehicles/${doc.vehicleId}#documentos`,
+        });
+      } else if (days !== null && days <= 30) {
+        attention.push({
+          id: `${doc._id}-doc-soon`,
+          kind: "compliance",
+          severity: "warning",
+          title: `${doc.title} da unidade ${unit} vence em ${days} dia${days === 1 ? "" : "s"}`,
+          detail: doc.amount
+            ? `Valor ${doc.amount.toLocaleString("pt-BR", { style: "currency", currency: org.currency })}`
+            : "Programar o pagamento",
+          href: `/vehicles/${doc.vehicleId}#documentos`,
+        });
+      }
+    }
+
+    for (const record of maintenanceRows) {
+      const unit = unitLabel.get(record.vehicleId as string) ?? "?";
+      if (record.nextServiceDate && record.nextServiceDate < Date.now()) {
+        const days = Math.abs(daysUntil(record.nextServiceDate));
+        attention.push({
+          id: `${record._id}-mt-date`,
+          kind: "service",
+          severity: "warning",
+          title: `Revisão da unidade ${unit} vencida`,
+          detail: `${record.description.slice(0, 60)} — prevista para ${days} dia(s) atrás`,
+          href: `/vehicles/${record.vehicleId}#manutencao`,
+        });
+      } else if (
+        record.nextServiceOdometer &&
+        record.nextServiceOdometer > 0
+      ) {
+        const vehicle = vehicles.find((v) => v._id === record.vehicleId);
+        if (vehicle && vehicle.odometer >= record.nextServiceOdometer) {
+          attention.push({
+            id: `${record._id}-mt-odo`,
+            kind: "service",
+            severity: "warning",
+            title: `Revisão por quilometragem na unidade ${unit}`,
+            detail: `Odômetro ${vehicle.odometer.toLocaleString("pt-BR")} ≥ ${record.nextServiceOdometer.toLocaleString("pt-BR")}`,
+            href: `/vehicles/${record.vehicleId}#manutencao`,
+          });
+        }
+      }
+    }
+
     const acquisitionTotal = vehicles.reduce((sum, v) => sum + (v.acquisitionCost ?? 0), 0);
     const bookValue = vehicles.reduce(
       (sum, v) => sum + (v.currentValue ?? v.acquisitionCost ?? 0),
@@ -1189,6 +1261,37 @@ export const updateVehicle = mutation({
       if (!driver || driver.orgId !== context.orgId) {
         throw new ConvexError("That driver is not part of your company.");
       }
+    }
+
+    // One driver runs one unit. If the chosen driver is currently on another
+    // vehicle, release that vehicle first — otherwise the driver would be
+    // linked to two units at once and the register would disagree with itself.
+    if (clean.assignedDriverId && clean.assignedDriverId !== existing.assignedDriverId) {
+      const previousHolders = await ctx.db
+        .query("vehicles")
+        .withIndex("by_org_driver", (q) =>
+          q.eq("orgId", context.orgId).eq("assignedDriverId", clean.assignedDriverId!),
+        )
+        .take(10);
+      for (const holder of previousHolders) {
+        if (holder._id === existing._id) continue;
+        await ctx.db.patch(holder._id, {
+          assignedDriverId: undefined,
+          status: holder.status === "assigned" ? "available" : holder.status,
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    // Keep the status column honest with the assignment.
+    if (
+      clean.assignedDriverId &&
+      !existing.assignedDriverId &&
+      (clean.status === "available" || clean.status === "active")
+    ) {
+      clean.status = "assigned";
+    } else if (!clean.assignedDriverId && existing.assignedDriverId && clean.status === "assigned") {
+      clean.status = "available";
     }
 
     // Clearing a field must remove the stored value, not leave it behind.

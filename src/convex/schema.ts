@@ -116,8 +116,43 @@ export const activityEntityValidator = v.union(
   v.literal("company"),
   v.literal("member"),
   v.literal("workspace"),
+  v.literal("maintenance"),
+  v.literal("document"),
 );
 export type ActivityEntity = Infer<typeof activityEntityValidator>;
+
+export const maintenanceTypeValidator = v.union(
+  v.literal("preventive"),
+  v.literal("corrective"),
+  v.literal("inspection"),
+  v.literal("tires"),
+  v.literal("oil_change"),
+  v.literal("brakes"),
+  v.literal("suspension"),
+  v.literal("electrical"),
+  v.literal("bodywork"),
+  v.literal("other"),
+);
+export type MaintenanceType = Infer<typeof maintenanceTypeValidator>;
+
+export const documentTypeValidator = v.union(
+  v.literal("ipva"),
+  v.literal("licenciamento"),
+  v.literal("seguro"),
+  v.literal("dpvat"),
+  v.literal("inspecao"),
+  v.literal("taf"),
+  v.literal("antt"),
+  v.literal("outro"),
+);
+export type DocumentType = Infer<typeof documentTypeValidator>;
+
+export const documentStatusValidator = v.union(
+  v.literal("pago"),
+  v.literal("pendente"),
+  v.literal("atrasado"),
+);
+export type DocumentStatus = Infer<typeof documentStatusValidator>;
 
 const schema = defineSchema(
   {
@@ -264,6 +299,54 @@ const schema = defineSchema(
       .index("by_org", ["orgId"])
       .index("by_org_entity", ["orgId", "entity"])
       .index("by_record", ["orgId", "entity", "entityId"]),
+
+    /**
+     * Maintenance service records: what was done, which parts were swapped,
+     * what it cost, at which mileage, and where the work happened.
+     */
+    maintenanceRecords: defineTable({
+      orgId: v.id("organizations"),
+      vehicleId: v.id("vehicles"),
+      serviceDate: v.number(),
+      maintenanceType: maintenanceTypeValidator,
+      description: v.string(),
+      partsReplaced: v.optional(v.string()),
+      cost: v.optional(v.number()),
+      odometerAtService: v.number(),
+      location: v.optional(v.string()),
+      vendor: v.optional(v.string()),
+      nextServiceDate: v.optional(v.number()),
+      nextServiceOdometer: v.optional(v.number()),
+      notes: v.optional(v.string()),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_org", ["orgId"])
+      .index("by_org_vehicle", ["orgId", "vehicleId"])
+      .index("by_org_date", ["orgId", "serviceDate"]),
+
+    /**
+      * Per-vehicle government documents, renewals and taxes to be paid
+      * (IPVA, licenciamento, seguro, DPVAT, inspeção, TAF, ANTT…).
+      */
+    vehicleDocuments: defineTable({
+      orgId: v.id("organizations"),
+      vehicleId: v.id("vehicles"),
+      documentType: documentTypeValidator,
+      title: v.string(),
+      dueDate: v.optional(v.number()),
+      amount: v.optional(v.number()),
+      status: documentStatusValidator,
+      paidAt: v.optional(v.number()),
+      notes: v.optional(v.string()),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_org", ["orgId"])
+      .index("by_org_vehicle", ["orgId", "vehicleId"])
+      .index("by_org_status", ["orgId", "status"]),
   },
   {
     schemaValidation: false,
