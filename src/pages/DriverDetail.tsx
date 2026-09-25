@@ -52,7 +52,7 @@ import { toast } from "sonner";
 export default function DriverDetailPage() {
   const { driverId } = useParams<{ driverId: string }>();
   const navigate = useNavigate();
-  const { currency, distanceUnit, role, org } = useWorkspace();
+  const { currency, distanceUnit, role } = useWorkspace();
   const data = useQuery(
     api.fleet.driverDetail,
     driverId ? { driverId: driverId as Id<"drivers"> } : "skip",

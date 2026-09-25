@@ -3,7 +3,6 @@ import type { ActivityEntity } from "@/convex/schema";
 import { AppShell } from "@/components/app-shell";
 import {
   EmptyNote,
-  LoadingNote,
   LogEntry,
   PageHeader,
   PaperPanel,

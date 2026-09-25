@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/table";
 import { DISTANCE_UNITS, VOLUME_UNITS } from "@/convex/constants";
 import {
-  canEditFleet,
   canManageCompany,
   useWorkspace,
   type WorkspaceMember,
@@ -127,7 +126,6 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
 
   const canManage = canManageCompany(role);
-  const canEdit = canEditFleet(role);
 
   // Keep the form in step if the workspace loads after mount.
   if (org && values === null) {
