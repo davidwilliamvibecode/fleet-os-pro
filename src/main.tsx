@@ -13,6 +13,13 @@ import "./index.css";
 const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
+const Vehicles = lazy(() => import("./pages/Vehicles.tsx"));
+const VehicleDetail = lazy(() => import("./pages/VehicleDetail.tsx"));
+const Drivers = lazy(() => import("./pages/Drivers.tsx"));
+const DriverDetail = lazy(() => import("./pages/DriverDetail.tsx"));
+const Logbook = lazy(() => import("./pages/Logbook.tsx"));
+const Settings = lazy(() => import("./pages/Settings.tsx"));
+const Setup = lazy(() => import("./pages/Setup.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -129,6 +136,62 @@ createRoot(document.getElementById("root")!).render(
                 element={
                   <RequireAuth>
                     <Dashboard />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/vehicles"
+                element={
+                  <RequireAuth>
+                    <Vehicles />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/vehicles/:vehicleId"
+                element={
+                  <RequireAuth>
+                    <VehicleDetail />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/drivers"
+                element={
+                  <RequireAuth>
+                    <Drivers />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/drivers/:driverId"
+                element={
+                  <RequireAuth>
+                    <DriverDetail />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/logbook"
+                element={
+                  <RequireAuth>
+                    <Logbook />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <RequireAuth>
+                    <Settings />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/setup"
+                element={
+                  <RequireAuth>
+                    <Setup />
                   </RequireAuth>
                 }
               />
