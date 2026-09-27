@@ -182,10 +182,10 @@ async function orgContext(ctx: QueryCtx | MutationCtx) {
 
 async function requireOrg(ctx: QueryCtx | MutationCtx): Promise<OrgContext> {
   const user = await signedInUser(ctx);
-  if (!user) throw new ConvexError("Your session expired. Please sign in again.");
+  if (!user) throw new ConvexError("Sua sessão expirou. Entre novamente.");
   const context = await orgContext(ctx);
   if (!context) {
-    throw new ConvexError("Create your company profile before adding fleet records.");
+    throw new ConvexError("Crie o perfil da empresa antes de registrar dados da frota.");
   }
   return {
     userId: context.userId,
@@ -206,8 +206,8 @@ function requireRole(role: OrgRole, allowed: OrgRole[], message: string) {
 function readText(input: Record<string, unknown>, key: string, label: string, max = 120) {
   const raw = input[key];
   const value = typeof raw === "string" ? raw.trim() : "";
-  if (!value) throw new ConvexError(`${label} is required.`);
-  if (value.length > max) throw new ConvexError(`${label} must be under ${max} characters.`);
+  if (!value) throw new ConvexError(`${label} é obrigatório.`);
+  if (value.length > max) throw new ConvexError(`${label} deve ter menos de ${max} caracteres.`);
   return value;
 }
 
@@ -222,7 +222,7 @@ function readOptionalText(
   if (typeof raw === "number") return String(raw);
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) return undefined;
-  if (value.length > max) throw new ConvexError(`${label} must be under ${max} characters.`);
+  if (value.length > max) throw new ConvexError(`${label} deve ter menos de ${max} caracteres.`);
   return value;
 }
 
@@ -234,7 +234,7 @@ function readEnum<T extends string>(
 ): T {
   const raw = input[key];
   if (typeof raw !== "string" || !allowed.includes(raw as T)) {
-    throw new ConvexError(`Choose a valid ${label.toLowerCase()}.`);
+    throw new ConvexError(`Selecione um ${label.toLowerCase()} válido.`);
   }
   return raw as T;
 }
@@ -248,7 +248,7 @@ function readOptionalEnum<T extends string>(
   const raw = input[key];
   if (raw === undefined || raw === null || raw === "") return undefined;
   if (typeof raw !== "string" || !allowed.includes(raw as T)) {
-    throw new ConvexError(`Choose a valid ${label.toLowerCase()}.`);
+    throw new ConvexError(`Selecione um ${label.toLowerCase()} válido.`);
   }
   return raw as T;
 }
@@ -262,13 +262,13 @@ function readNumber(
   const raw = input[key];
   const value = typeof raw === "string" ? Number(raw) : raw;
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new ConvexError(`${label} must be a number.`);
+    throw new ConvexError(`${label} deve ser um número.`);
   }
   if (opts.min !== undefined && value < opts.min) {
-    throw new ConvexError(`${label} cannot be below ${opts.min}.`);
+    throw new ConvexError(`${label} não pode ser menor que ${opts.min}.`);
   }
   if (opts.max !== undefined && value > opts.max) {
-    throw new ConvexError(`${label} looks too high — check the value.`);
+    throw new ConvexError(`${label} parece alto demais — confira o valor.`);
   }
   return value;
 }
@@ -289,9 +289,9 @@ function readOptionalDate(input: Record<string, unknown>, key: string, label: st
   if (raw === undefined || raw === null || raw === "") return undefined;
   const value =
     typeof raw === "number" ? raw : typeof raw === "string" ? Date.parse(`${raw}T00:00:00`) : NaN;
-  if (!Number.isFinite(value)) throw new ConvexError(`${label} is not a valid date.`);
+  if (!Number.isFinite(value)) throw new ConvexError(`${label} não é uma data válida.`);
   if (value < Date.parse("1900-01-01") || value > Date.now() + 40 * 365 * DAY) {
-    throw new ConvexError(`${label} is outside the supported range.`);
+    throw new ConvexError(`${label} está fora do intervalo suportado.`);
   }
   return value;
 }
@@ -303,7 +303,7 @@ function normalizeVin(raw: string | undefined, label: string) {
   const vin = raw.replace(/\s+/g, "").toUpperCase();
   if (!VIN_PATTERN.test(vin)) {
     throw new ConvexError(
-      `${label} must be 17 characters (letters and numbers, no I, O or Q).`,
+      `${label} deve ter 17 caracteres (letras e números, sem I, O ou Q).`,
     );
   }
   return vin;
@@ -314,31 +314,31 @@ function vehicleFromInput(
   current?: { status?: string; odometer?: number },
 ): CleanVehicle {
   const odometer = readNumber(input, "odometer", "Odometer", { min: 0, max: 5_000_000 });
-  const unitNumber = readText(input, "unitNumber", "Unit number", 40);
-  const year = readOptionalNumber(input, "year", "Year", { min: 1900, max: new Date().getFullYear() + 2 });
+  const unitNumber = readText(input, "unitNumber", "Número da unidade", 40);
+  const year = readOptionalNumber(input, "year", "Ano", { min: 1900, max: new Date().getFullYear() + 2 });
 
   const draft: CleanVehicle = {
     unitNumber,
-    vehicleType: readEnum(input, "vehicleType", VEHICLE_TYPES, "Vehicle type"),
-    make: readText(input, "make", "Make", 60),
-    model: readText(input, "model", "Model", 60),
-    fuelType: readEnum(input, "fuelType", FUEL_TYPES, "Fuel type"),
+    vehicleType: readEnum(input, "vehicleType", VEHICLE_TYPES, "Tipo de veículo"),
+    make: readText(input, "make", "Marca", 60),
+    model: readText(input, "model", "Modelo", 60),
+    fuelType: readEnum(input, "fuelType", FUEL_TYPES, "Combustível"),
     ownershipType: readEnum(
       input,
       "ownershipType",
       ["owned", "financed", "leased", "rented"] as const,
       "Ownership type",
     ),
-    status: readEnum(input, "status", VEHICLE_STATUSES, "Status"),
+    status: readEnum(input, "status", VEHICLE_STATUSES, "Situação"),
     odometer,
     odometerUpdatedAt: Date.now(),
-    notes: readOptionalText(input, "notes", "Notes", 2000),
+    notes: readOptionalText(input, "notes", "Observações", 2000),
   };
 
   if (year !== undefined) draft.year = Math.round(year);
-  const vin = normalizeVin(readOptionalText(input, "vin", "VIN", 40), "VIN");
+  const vin = normalizeVin(readOptionalText(input, "vin", "Chassi (VIN)", 40), "Chassi (VIN)");
   if (vin) draft.vin = vin;
-  const plate = readOptionalText(input, "plate", "License plate", 20);
+  const plate = readOptionalText(input, "plate", "Placa", 20);
   if (plate) draft.plate = plate.toUpperCase();
 
   const transmission = readOptionalEnum(
@@ -349,36 +349,36 @@ function vehicleFromInput(
   );
   if (transmission) draft.transmission = transmission;
 
-  const acquisitionDate = readOptionalDate(input, "acquisitionDate", "Acquisition date");
+  const acquisitionDate = readOptionalDate(input, "acquisitionDate", "Data de aquisição");
   if (acquisitionDate) draft.acquisitionDate = acquisitionDate;
-  const leaseEndDate = readOptionalDate(input, "leaseEndDate", "Lease end date");
+  const leaseEndDate = readOptionalDate(input, "leaseEndDate", "Fim do contrato de locação");
   if (leaseEndDate) draft.leaseEndDate = leaseEndDate;
-  const insuranceExpiry = readOptionalDate(input, "insuranceExpiry", "Insurance expiry");
+  const insuranceExpiry = readOptionalDate(input, "insuranceExpiry", "Vencimento do seguro");
   if (insuranceExpiry) draft.insuranceExpiry = insuranceExpiry;
-  const registrationExpiry = readOptionalDate(input, "registrationExpiry", "Registration expiry");
+  const registrationExpiry = readOptionalDate(input, "registrationExpiry", "Vencimento do licenciamento");
   if (registrationExpiry) draft.registrationExpiry = registrationExpiry;
-  const nextServiceDate = readOptionalDate(input, "nextServiceDate", "Next service date");
+  const nextServiceDate = readOptionalDate(input, "nextServiceDate", "Próxima revisão");
   if (nextServiceDate) draft.nextServiceDate = nextServiceDate;
 
-  const acquisitionCost = readOptionalNumber(input, "acquisitionCost", "Acquisition cost", {
+  const acquisitionCost = readOptionalNumber(input, "acquisitionCost", "Custo de aquisição", {
     min: 0,
     max: 100_000_000,
   });
   if (acquisitionCost !== undefined) draft.acquisitionCost = acquisitionCost;
-  const currentValue = readOptionalNumber(input, "currentValue", "Current value", {
+  const currentValue = readOptionalNumber(input, "currentValue", "Valor atual", {
     min: 0,
     max: 100_000_000,
   });
   if (currentValue !== undefined) draft.currentValue = currentValue;
-  const nextServiceOdometer = readOptionalNumber(input, "nextServiceOdometer", "Next service odometer", {
+  const nextServiceOdometer = readOptionalNumber(input, "nextServiceOdometer", "Hodômetro da próxima revisão", {
     min: 0,
     max: 5_000_000,
   });
   if (nextServiceOdometer !== undefined) draft.nextServiceOdometer = nextServiceOdometer;
 
-  const insurancePolicy = readOptionalText(input, "insurancePolicy", "Insurance policy", 80);
+  const insurancePolicy = readOptionalText(input, "insurancePolicy", "Apólice do seguro", 80);
   if (insurancePolicy) draft.insurancePolicy = insurancePolicy;
-  const depot = readOptionalText(input, "depot", "Depot / yard", 80);
+  const depot = readOptionalText(input, "depot", "Base / pátio", 80);
   if (depot) draft.depot = depot;
 
   const assignedDriverId = input.assignedDriverId;
@@ -386,7 +386,7 @@ function vehicleFromInput(
 
   if (current?.odometer !== undefined && odometer < current.odometer) {
     throw new ConvexError(
-      `Odometer cannot be lower than the last reading (${current.odometer.toLocaleString()}).`,
+      `O odômetro não pode ser menor que a última leitura (${current.odometer.toLocaleString("pt-BR")}).`,
     );
   }
 
@@ -395,52 +395,52 @@ function vehicleFromInput(
 
 function driverFromInput(input: Record<string, unknown>): CleanDriver {
   const draft: CleanDriver = {
-    firstName: readText(input, "firstName", "First name", 60),
-    lastName: readText(input, "lastName", "Last name", 60),
-    licenseNumber: readText(input, "licenseNumber", "License number", 40),
-    status: readEnum(input, "status", DRIVER_STATUSES, "Employment status"),
+    firstName: readText(input, "firstName", "Nome", 60),
+    lastName: readText(input, "lastName", "Sobrenome", 60),
+    licenseNumber: readText(input, "licenseNumber", "CNH", 40),
+    status: readEnum(input, "status", DRIVER_STATUSES, "Situação do vínculo"),
     compensationModel: readEnum(
       input,
       "compensationModel",
       ["salary", "hourly", "per_mile", "per_trip", "owner_operator"] as const,
-      "Compensation model",
+      "Modelo de remuneração",
     ),
-    notes: readOptionalText(input, "notes", "Notes", 2000),
+    notes: readOptionalText(input, "notes", "Observações", 2000),
   };
 
-  const phone = readOptionalText(input, "phone", "Phone", 40);
+  const phone = readOptionalText(input, "phone", "Telefone", 40);
   if (phone) draft.phone = phone;
-  const email = readOptionalText(input, "email", "Email", 120);
+  const email = readOptionalText(input, "email", "E-mail", 120);
   if (email) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      throw new ConvexError("Enter a valid email address.");
+      throw new ConvexError("Informe um e-mail válido.");
     }
     draft.email = email;
   }
-  const addressLine = readOptionalText(input, "addressLine", "Address", 200);
+  const addressLine = readOptionalText(input, "addressLine", "Endereço", 200);
   if (addressLine) draft.addressLine = addressLine;
-  const city = readOptionalText(input, "city", "City", 80);
+  const city = readOptionalText(input, "city", "Cidade", 80);
   if (city) draft.city = city;
-  const licenseClass = readOptionalText(input, "licenseClass", "License class", 20);
+  const licenseClass = readOptionalText(input, "licenseClass", "Categoria da CNH", 20);
   if (licenseClass) draft.licenseClass = licenseClass;
-  const depot = readOptionalText(input, "depot", "Depot / yard", 80);
+  const depot = readOptionalText(input, "depot", "Base / pátio", 80);
   if (depot) draft.depot = depot;
 
-  const licenseExpiry = readOptionalDate(input, "licenseExpiry", "License expiry");
+  const licenseExpiry = readOptionalDate(input, "licenseExpiry", "Validade da CNH");
   if (licenseExpiry) draft.licenseExpiry = licenseExpiry;
-  const medicalExpiry = readOptionalDate(input, "medicalExpiry", "Medical card expiry");
+  const medicalExpiry = readOptionalDate(input, "medicalExpiry", "Validade do exame toxicológico");
   if (medicalExpiry) draft.medicalExpiry = medicalExpiry;
-  const hireDate = readOptionalDate(input, "hireDate", "Hire date");
+  const hireDate = readOptionalDate(input, "hireDate", "Data de admissão");
   if (hireDate) draft.hireDate = hireDate;
 
-  const rate = readOptionalNumber(input, "rate", "Pay rate", { min: 0, max: 10_000_000 });
+  const rate = readOptionalNumber(input, "rate", "Valor da remuneração", { min: 0, max: 10_000_000 });
   if (rate !== undefined) draft.rate = rate;
-  const emergencyContactName = readOptionalText(input, "emergencyContactName", "Emergency contact", 120);
+  const emergencyContactName = readOptionalText(input, "emergencyContactName", "Contato de emergência", 120);
   if (emergencyContactName) draft.emergencyContactName = emergencyContactName;
   const emergencyContactPhone = readOptionalText(
     input,
     "emergencyContactPhone",
-    "Emergency contact phone",
+    "Telefone do contato de emergência",
     40,
   );
   if (emergencyContactPhone) draft.emergencyContactPhone = emergencyContactPhone;
@@ -476,17 +476,17 @@ function formatChangeValue(value: unknown) {
 }
 
 const VEHICLE_TRACKED_FIELDS: { key: keyof CleanVehicle; label: string }[] = [
-  { key: "unitNumber", label: "Unit number" },
-  { key: "status", label: "Status" },
-  { key: "odometer", label: "Odometer" },
-  { key: "plate", label: "License plate" },
-  { key: "vin", label: "VIN" },
-  { key: "assignedDriverId", label: "Assigned driver" },
-  { key: "insuranceExpiry", label: "Insurance expiry" },
-  { key: "registrationExpiry", label: "Registration expiry" },
-  { key: "nextServiceDate", label: "Next service date" },
-  { key: "nextServiceOdometer", label: "Next service odometer" },
-  { key: "currentValue", label: "Current value" },
+  { key: "unitNumber", label: "Número da unidade" },
+  { key: "status", label: "Situação" },
+  { key: "odometer", label: "Odômetro" },
+  { key: "plate", label: "Placa" },
+  { key: "vin", label: "Chassi (VIN)" },
+  { key: "assignedDriverId", label: "Motorista vinculado" },
+  { key: "insuranceExpiry", label: "Vencimento do seguro" },
+  { key: "registrationExpiry", label: "Vencimento do licenciamento" },
+  { key: "nextServiceDate", label: "Próxima revisão (data)" },
+  { key: "nextServiceOdometer", label: "Próxima revisão (km)" },
+  { key: "currentValue", label: "Valor atual" },
 ];
 
 async function vehicleChanges(
@@ -512,14 +512,14 @@ async function vehicleChanges(
 }
 
 const DRIVER_TRACKED_FIELDS: { key: keyof CleanDriver; label: string }[] = [
-  { key: "firstName", label: "First name" },
-  { key: "lastName", label: "Last name" },
-  { key: "status", label: "Status" },
-  { key: "licenseNumber", label: "License number" },
-  { key: "licenseExpiry", label: "License expiry" },
-  { key: "phone", label: "Phone" },
-  { key: "email", label: "Email" },
-  { key: "rate", label: "Pay rate" },
+  { key: "firstName", label: "Nome" },
+  { key: "lastName", label: "Sobrenome" },
+  { key: "status", label: "Situação" },
+  { key: "licenseNumber", label: "Número da CNH" },
+  { key: "licenseExpiry", label: "Validade da CNH" },
+  { key: "phone", label: "Telefone" },
+  { key: "email", label: "E-mail" },
+  { key: "rate", label: "Remuneração" },
 ];
 
 function diffFields<T>(
@@ -689,7 +689,7 @@ export const dashboard = query({
 
     const attention: AttentionItem[] = [];
     for (const vehicle of vehicles) {
-      const label = `Unit ${vehicle.unitNumber}`;
+      const label = `Unidade ${vehicle.unitNumber}`;
 
       if (vehicle.insuranceExpiry) {
         const severity = expirySeverity(vehicle.insuranceExpiry);
@@ -699,8 +699,8 @@ export const dashboard = query({
             id: `${vehicle._id}-insurance`,
             kind: "compliance",
             severity,
-            title: days < 0 ? `${label} insurance expired` : `${label} insurance renews soon`,
-            detail: days < 0 ? `Lapsed ${Math.abs(days)} days ago` : `Due in ${days} days`,
+            title: days < 0 ? `Seguro da ${label} vencido` : `Seguro da ${label} vence em breve`,
+            detail: days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
         }
@@ -713,8 +713,8 @@ export const dashboard = query({
             id: `${vehicle._id}-registration`,
             kind: "compliance",
             severity,
-            title: days < 0 ? `${label} registration expired` : `${label} registration due soon`,
-            detail: days < 0 ? `Lapsed ${Math.abs(days)} days ago` : `Due in ${days} days`,
+            title: days < 0 ? `Licenciamento da ${label} vencido` : `Licenciamento da ${label} vence em breve`,
+            detail: days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
         }
@@ -725,8 +725,8 @@ export const dashboard = query({
             id: `${vehicle._id}-service-date`,
             kind: "service",
             severity: "warning",
-            title: `${label} service overdue`,
-            detail: `Was due ${Math.abs(daysUntil(vehicle.nextServiceDate))} days ago`,
+            title: `Revisão da ${label} vencida`,
+            detail: `Prevista para há ${Math.abs(daysUntil(vehicle.nextServiceDate))} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
         } else if (vehicle.nextServiceOdometer && vehicle.odometer >= vehicle.nextServiceOdometer) {
@@ -734,8 +734,8 @@ export const dashboard = query({
             id: `${vehicle._id}-service-odo`,
             kind: "service",
             severity: "warning",
-            title: `${label} service due on mileage`,
-            detail: `At ${vehicle.odometer.toLocaleString()} ${org.distanceUnit} vs ${vehicle.nextServiceOdometer.toLocaleString()} target`,
+            title: `Revisão da ${label} por quilometragem`,
+            detail: `Odômetro ${vehicle.odometer.toLocaleString("pt-BR")} ${org.distanceUnit} ≥ meta ${vehicle.nextServiceOdometer.toLocaleString("pt-BR")}`,
             href: `/vehicles/${vehicle._id}`,
           });
         } else if (
@@ -746,8 +746,8 @@ export const dashboard = query({
             id: `${vehicle._id}-service-soon`,
             kind: "service",
             severity: "info",
-            title: `${label} service coming up`,
-            detail: `Due in ${daysUntil(vehicle.nextServiceDate)} days`,
+            title: `Revisão da ${label} se aproximando`,
+            detail: `Vence em ${daysUntil(vehicle.nextServiceDate)} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
         }
@@ -757,8 +757,8 @@ export const dashboard = query({
           id: `${vehicle._id}-oos`,
           kind: "status",
           severity: "critical",
-          title: `${label} is out of service`,
-          detail: vehicle.notes ? vehicle.notes.slice(0, 90) : "No reason recorded yet",
+          title: `${label} está fora de operação`,
+          detail: vehicle.notes ? vehicle.notes.slice(0, 90) : "Nenhum motivo registrado ainda",
           href: `/vehicles/${vehicle._id}`,
         });
       } else if (
@@ -771,8 +771,8 @@ export const dashboard = query({
           id: `${vehicle._id}-unassigned`,
           kind: "assignment",
           severity: "info",
-          title: `${label} has no driver`,
-          detail: "Available for assignment",
+          title: `${label} sem motorista`,
+          detail: "Disponível para vinculação",
           href: `/vehicles/${vehicle._id}`,
         });
       }
@@ -788,8 +788,8 @@ export const dashboard = query({
             id: `${driver._id}-license`,
             kind: "compliance",
             severity,
-            title: days < 0 ? `${name}'s license expired` : `${name}'s license expires soon`,
-            detail: days < 0 ? `Lapsed ${Math.abs(days)} days ago` : `Expires in ${days} days`,
+            title: days < 0 ? `CNH de ${name} vencida` : `CNH de ${name} vence em breve`,
+            detail: days < 0 ? `Vencida há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
             href: `/drivers/${driver._id}`,
           });
         }
@@ -802,8 +802,8 @@ export const dashboard = query({
             id: `${driver._id}-medical`,
             kind: "compliance",
             severity,
-            title: `${name}'s medical card ${days < 0 ? "expired" : "expires soon"}`,
-            detail: days < 0 ? `Lapsed ${Math.abs(days)} days ago` : `Expires in ${days} days`,
+            title: `Exame tocicódico de ${name} ${days < 0 ? "vencido" : "vence em breve"}`,
+            detail: days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
             href: `/drivers/${driver._id}`,
           });
         }
@@ -1164,14 +1164,14 @@ export const createVehicle = mutation({
       .withIndex("by_org_unit", (q) => q.eq("orgId", context.orgId).eq("unitNumber", clean.unitNumber))
       .first();
     if (duplicateUnit) {
-      throw new ConvexError(`Unit ${clean.unitNumber} already exists in your fleet register.`);
+      throw new ConvexError(`A unidade ${clean.unitNumber} já existe no seu registro.`);
     }
     if (clean.vin) {
       const duplicateVin = await ctx.db
         .query("vehicles")
         .withIndex("by_org_vin", (q) => q.eq("orgId", context.orgId).eq("vin", clean.vin!))
         .first();
-      if (duplicateVin) throw new ConvexError("That VIN is already registered to another unit.");
+      if (duplicateVin) throw new ConvexError("Esse chassi (VIN) já está cadastrado em outra unidade.");
     }
     if (clean.plate) {
       const duplicatePlate = await ctx.db
@@ -1179,13 +1179,13 @@ export const createVehicle = mutation({
         .withIndex("by_org_plate", (q) => q.eq("orgId", context.orgId).eq("plate", clean.plate!))
         .first();
       if (duplicatePlate) {
-        throw new ConvexError(`Plate ${clean.plate} is already used by unit ${duplicatePlate.unitNumber}.`);
+        throw new ConvexError(`A placa ${clean.plate} já é usada pela unidade ${duplicatePlate.unitNumber}.`);
       }
     }
     if (clean.assignedDriverId) {
       const driver = await ctx.db.get(clean.assignedDriverId);
       if (!driver || driver.orgId !== context.orgId) {
-        throw new ConvexError("That driver is not part of your company.");
+        throw new ConvexError("Esse motorista não faz parte da sua empresa.");
       }
     }
 
@@ -1205,8 +1205,8 @@ export const createVehicle = mutation({
       action: "create",
       entity: "vehicle",
       entityId: vehicleId as string,
-      entityLabel: `Unit ${clean.unitNumber}`,
-      summary: `Registered ${clean.year ? `${clean.year} ` : ""}${clean.make} ${clean.model} as unit ${clean.unitNumber}.`,
+      entityLabel: `Unidade ${clean.unitNumber}`,
+      summary: `Cadastrou ${clean.year ? `${clean.year} ` : ""}${clean.make} ${clean.model} como unidade ${clean.unitNumber}.`,
     });
 
     return { vehicleId };
@@ -1217,11 +1217,11 @@ export const updateVehicle = mutation({
   args: { vehicleId: v.id("vehicles"), ...vehicleInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow editing vehicles.");
+    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite editar veículos.");
 
     const existing = await ctx.db.get(args.vehicleId);
     if (!existing || existing.orgId !== context.orgId) {
-      throw new ConvexError("That vehicle is not in your fleet register.");
+      throw new ConvexError("Esse veículo não está no seu registro.");
     }
 
     const clean = vehicleFromInput(args as unknown as Record<string, unknown>, {
@@ -1234,7 +1234,7 @@ export const updateVehicle = mutation({
       .withIndex("by_org_unit", (q) => q.eq("orgId", context.orgId).eq("unitNumber", clean.unitNumber))
       .first();
     if (duplicateUnit && duplicateUnit._id !== existing._id) {
-      throw new ConvexError(`Unit ${clean.unitNumber} already exists in your fleet register.`);
+      throw new ConvexError(`A unidade ${clean.unitNumber} já existe no seu registro.`);
     }
     if (clean.vin && clean.vin !== existing.vin) {
       const duplicateVin = await ctx.db
@@ -1242,7 +1242,7 @@ export const updateVehicle = mutation({
         .withIndex("by_org_vin", (q) => q.eq("orgId", context.orgId).eq("vin", clean.vin!))
         .first();
       if (duplicateVin && duplicateVin._id !== existing._id) {
-        throw new ConvexError("That VIN is already registered to another unit.");
+        throw new ConvexError("Esse chassi (VIN) já está cadastrado em outra unidade.");
       }
     }
     if (clean.plate && clean.plate !== existing.plate) {
@@ -1252,14 +1252,14 @@ export const updateVehicle = mutation({
         .first();
       if (duplicatePlate && duplicatePlate._id !== existing._id) {
         throw new ConvexError(
-          `Plate ${clean.plate} is already used by unit ${duplicatePlate.unitNumber}.`,
+          `A placa ${clean.plate} já é usada pela unidade ${duplicatePlate.unitNumber}.`,
         );
       }
     }
     if (clean.assignedDriverId) {
       const driver = await ctx.db.get(clean.assignedDriverId);
       if (!driver || driver.orgId !== context.orgId) {
-        throw new ConvexError("That driver is not part of your company.");
+        throw new ConvexError("Esse motorista não faz parte da sua empresa.");
       }
     }
 
@@ -1325,13 +1325,13 @@ export const updateVehicle = mutation({
       orgId: context.orgId,
       userId: context.userId,
       actorName: context.actorName,
-      action: statusChanged ? "status_change" : changes.some((c) => c.field === "Assigned driver") ? "assign" : "update",
+      action: statusChanged ? "status_change" : changes.some((c) => c.field === "Motorista vinculado") ? "assign" : "update",
       entity: "vehicle",
       entityId: existing._id as string,
-      entityLabel: `Unit ${clean.unitNumber}`,
+      entityLabel: `Unidade ${clean.unitNumber}`,
       summary: statusChanged
-        ? `Status moved from ${existing.status.replace(/_/g, " ")} to ${clean.status.replace(/_/g, " ")}.`
-        : "Vehicle record updated.",
+        ? `Situação alterada de ${existing.status.replace(/_/g, " ")} para ${clean.status.replace(/_/g, " ")}.`
+        : "Registro do veículo atualizado.",
       changes,
     });
 
@@ -1343,11 +1343,11 @@ export const deleteVehicle = mutation({
   args: { vehicleId: v.id("vehicles") },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Only an owner or admin can delete a vehicle.");
+    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode excluir veículos.");
 
     const vehicle = await ctx.db.get(args.vehicleId);
     if (!vehicle || vehicle.orgId !== context.orgId) {
-      throw new ConvexError("That vehicle is not in your fleet register.");
+      throw new ConvexError("Esse veículo não está no seu registro.");
     }
 
     await ctx.db.delete(vehicle._id);
@@ -1358,8 +1358,8 @@ export const deleteVehicle = mutation({
       action: "delete",
       entity: "vehicle",
       entityId: vehicle._id as string,
-      entityLabel: `Unit ${vehicle.unitNumber}`,
-      summary: `Removed unit ${vehicle.unitNumber} (${vehicle.make} ${vehicle.model}) from the register.`,
+      entityLabel: `Unidade ${vehicle.unitNumber}`,
+      summary: `Removeu a unidade ${vehicle.unitNumber} (${vehicle.make} ${vehicle.model}) do registro.`,
     });
     return { ok: true };
   },
@@ -1518,7 +1518,7 @@ export const createDriver = mutation({
   args: { ...driverInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow adding drivers.");
+    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite cadastrar motoristas.");
 
     const clean = driverFromInput(args as unknown as Record<string, unknown>);
     const duplicate = await ctx.db
@@ -1529,7 +1529,7 @@ export const createDriver = mutation({
       .first();
     if (duplicate) {
       throw new ConvexError(
-        `License ${clean.licenseNumber} is already on file for ${duplicate.firstName} ${duplicate.lastName}.`,
+        `A CNH ${clean.licenseNumber} já está cadastrada para ${duplicate.firstName} ${duplicate.lastName}.`,
       );
     }
 
@@ -1557,8 +1557,8 @@ export const createDriver = mutation({
           action: "assign",
           entity: "vehicle",
           entityId: vehicle._id as string,
-          entityLabel: `Unit ${vehicle.unitNumber}`,
-          summary: `${clean.firstName} ${clean.lastName} assigned to unit ${vehicle.unitNumber}.`,
+          entityLabel: `Unidade ${vehicle.unitNumber}`,
+          summary: `${clean.firstName} ${clean.lastName} vinculado à unidade ${vehicle.unitNumber}.`,
         });
       }
     }
@@ -1571,7 +1571,7 @@ export const createDriver = mutation({
       entity: "driver",
       entityId: driverId as string,
       entityLabel: `${clean.firstName} ${clean.lastName}`,
-      summary: `Added driver ${clean.firstName} ${clean.lastName} (license ${clean.licenseNumber}).`,
+      summary: `Cadastrou o motorista ${clean.firstName} ${clean.lastName} (CNH ${clean.licenseNumber}).`,
     });
 
     return { driverId };
@@ -1582,11 +1582,11 @@ export const updateDriver = mutation({
   args: { driverId: v.id("drivers"), ...driverInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow editing drivers.");
+    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite editar motoristas.");
 
     const existing = await ctx.db.get(args.driverId);
     if (!existing || existing.orgId !== context.orgId) {
-      throw new ConvexError("That driver is not on your roster.");
+      throw new ConvexError("Esse motorista não está na sua equipe.");
     }
 
     const clean = driverFromInput(args as unknown as Record<string, unknown>);
@@ -1599,7 +1599,7 @@ export const updateDriver = mutation({
         .first();
       if (duplicate && duplicate._id !== existing._id) {
         throw new ConvexError(
-          `License ${clean.licenseNumber} is already on file for ${duplicate.firstName} ${duplicate.lastName}.`,
+          `A CNH ${clean.licenseNumber} já está cadastrada para ${duplicate.firstName} ${duplicate.lastName}.`,
         );
       }
     }
@@ -1645,7 +1645,7 @@ export const updateDriver = mutation({
       }
       const nextVehicle = await ctx.db.get(nextVehicleId);
       if (!nextVehicle || nextVehicle.orgId !== context.orgId) {
-        throw new ConvexError("That vehicle is not in your fleet register.");
+        throw new ConvexError("Esse veículo não está no seu registro.");
       }
       await ctx.db.patch(nextVehicle._id, {
         assignedDriverId: existing._id,
@@ -1653,9 +1653,9 @@ export const updateDriver = mutation({
         updatedAt: Date.now(),
       });
       changes.push({
-        field: "Assigned vehicle",
-        from: currentVehicle ? `Unit ${currentVehicle.unitNumber}` : "—",
-        to: `Unit ${nextVehicle.unitNumber}`,
+        field: "Veículo vinculado",
+        from: currentVehicle ? `Unidade ${currentVehicle.unitNumber}` : "—",
+        to: `Unidade ${nextVehicle.unitNumber}`,
       });
     } else if (!nextVehicleId && currentVehicle) {
       await ctx.db.patch(currentVehicle._id, {
@@ -1663,7 +1663,7 @@ export const updateDriver = mutation({
         status: currentVehicle.status === "assigned" ? "available" : currentVehicle.status,
         updatedAt: Date.now(),
       });
-      changes.push({ field: "Assigned vehicle", from: `Unit ${currentVehicle.unitNumber}`, to: "—" });
+      changes.push({ field: "Veículo vinculado", from: `Unidade ${currentVehicle.unitNumber}`, to: "—" });
     }
 
     const statusChanged = existing.status !== clean.status;
@@ -1676,8 +1676,8 @@ export const updateDriver = mutation({
       entityId: existing._id as string,
       entityLabel: `${clean.firstName} ${clean.lastName}`,
       summary: statusChanged
-        ? `Employment status moved from ${existing.status.replace(/_/g, " ")} to ${clean.status.replace(/_/g, " ")}.`
-        : "Driver record updated.",
+        ? `Situação alterada de ${existing.status.replace(/_/g, " ")} para ${clean.status.replace(/_/g, " ")}.`
+        : "Registro do motorista atualizado.",
       changes,
     });
 
@@ -1689,11 +1689,11 @@ export const deleteDriver = mutation({
   args: { driverId: v.id("drivers") },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Only an owner or admin can remove a driver.");
+    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode remover motoristas.");
 
     const driver = await ctx.db.get(args.driverId);
     if (!driver || driver.orgId !== context.orgId) {
-      throw new ConvexError("That driver is not on your roster.");
+      throw new ConvexError("Esse motorista não está na sua equipe.");
     }
 
     // Keep referential integrity: release any vehicle this driver was holding.
@@ -1720,9 +1720,9 @@ export const deleteDriver = mutation({
       entity: "driver",
       entityId: driver._id as string,
       entityLabel: `${driver.firstName} ${driver.lastName}`,
-      summary: `Removed driver ${driver.firstName} ${driver.lastName}${
+      summary: `Removeu o motorista ${driver.firstName} ${driver.lastName}${
         assignedVehicles.length
-          ? ` and released unit ${assignedVehicles.map((v) => v.unitNumber).join(", ")}`
+          ? ` e liberou a(s) unidade(s) ${assignedVehicles.map((v) => v.unitNumber).join(", ")}`
           : ""
       }.`,
     });
@@ -1752,18 +1752,18 @@ export const createOrganization = mutation({
   },
   handler: async (ctx, args) => {
     const user = await signedInUser(ctx);
-    if (!user) throw new ConvexError("Your session expired. Please sign in again.");
+    if (!user) throw new ConvexError("Sua sessão expirou. Entre novamente.");
 
     const existing = await ctx.db
       .query("memberships")
       .withIndex("by_user", (q) => q.eq("userId", user.userId))
       .first();
-    if (existing) throw new ConvexError("You already belong to a company in Fleet Command.");
+    if (existing) throw new ConvexError("Você já pertence a uma empresa no Fleet Command.");
 
     const name = args.name.trim();
-    if (!name) throw new ConvexError("Company name is required.");
+    if (!name) throw new ConvexError("O nome da empresa é obrigatório.");
     if (!/^[A-Z]{3}$/.test(args.currency.toUpperCase())) {
-      throw new ConvexError("Use a 3-letter currency code such as USD or EUR.");
+      throw new ConvexError("Use um código de moeda com 3 letras, como BRL ou USD.");
     }
 
     const now = Date.now();
@@ -1830,9 +1830,9 @@ export const updateOrganization = mutation({
     requireRole(context.role, COMPANY_ROLES, "Only an owner or admin can change company settings.");
 
     const name = args.name.trim();
-    if (!name) throw new ConvexError("Company name is required.");
+    if (!name) throw new ConvexError("O nome da empresa é obrigatório.");
     if (!/^[A-Z]{3}$/.test(args.currency.toUpperCase())) {
-      throw new ConvexError("Use a 3-letter currency code such as USD or EUR.");
+      throw new ConvexError("Use um código de moeda com 3 letras, como BRL ou USD.");
     }
 
     await ctx.db.patch(context.orgId, {
@@ -1860,7 +1860,7 @@ export const updateOrganization = mutation({
       entity: "company",
       entityId: context.orgId as string,
       entityLabel: name,
-      summary: "Updated company profile and measurement settings.",
+      summary: "Atualizou o perfil da empresa e as configurações de medição.",
     });
 
     return { ok: true };
@@ -1879,7 +1879,7 @@ export const completeSetup = mutation({
       action: "update",
       entity: "workspace",
       entityLabel: "Setup",
-      summary: "Finished the Fleet Command setup checklist.",
+      summary: "Concluiu a lista de configuração do Fleet Command.",
     });
     return { ok: true };
   },
@@ -1893,7 +1893,7 @@ export const addMember = mutation({
 
     const email = args.email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      throw new ConvexError("Enter a valid email address.");
+      throw new ConvexError("Informe um e-mail válido.");
     }
     const user = await ctx.db
       .query("users")
@@ -1909,7 +1909,7 @@ export const addMember = mutation({
       .query("memberships")
       .withIndex("by_org_user", (q) => q.eq("orgId", context.orgId).eq("userId", user._id))
       .first();
-    if (existing) throw new ConvexError("That person is already on your team.");
+    if (existing) throw new ConvexError("Essa pessoa já está na sua equipe.");
 
     await ctx.db.insert("memberships", {
       orgId: context.orgId,
@@ -1941,13 +1941,13 @@ export const updateMemberRole = mutation({
 
     const membership = await ctx.db.get(args.membershipId);
     if (!membership || membership.orgId !== context.orgId) {
-      throw new ConvexError("That team member is not in this company.");
+      throw new ConvexError("Esse integrante não faz parte desta empresa.");
     }
     if (membership.userId === context.userId) {
-      throw new ConvexError("You cannot change your own role.");
+      throw new ConvexError("Você não pode alterar seu próprio papel.");
     }
     if (membership.role === "owner") {
-      throw new ConvexError("The company owner's role cannot be changed.");
+      throw new ConvexError("O papel do proprietário da empresa não pode ser alterado.");
     }
 
     await ctx.db.patch(membership._id, { role: args.role });
@@ -1973,9 +1973,9 @@ export const removeMember = mutation({
 
     const membership = await ctx.db.get(args.membershipId);
     if (!membership || membership.orgId !== context.orgId) {
-      throw new ConvexError("That team member is not in this company.");
+      throw new ConvexError("Esse integrante não faz parte desta empresa.");
     }
-    if (membership.role === "owner") throw new ConvexError("The company owner cannot be removed.");
+    if (membership.role === "owner") throw new ConvexError("O proprietário da empresa não pode ser removido.");
 
     const user = await ctx.db.get(membership.userId);
     await ctx.db.delete(membership._id);
@@ -2151,7 +2151,7 @@ export const seedDemoFleet = mutation({
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(1);
     if (existingVehicles.length) {
-      throw new ConvexError("Your register already has vehicles. Clear them first to load samples.");
+      throw new ConvexError("Seu cadastro já possui veículos. Limpe-os antes de carregar exemplos.");
     }
 
     const now = Date.now();
