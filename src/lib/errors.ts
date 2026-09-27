@@ -5,7 +5,7 @@ import { ConvexError } from "convex/values";
  * fleet manager can act on. Validation failures raise `ConvexError` with a
  * plain message in `error.data`.
  */
-export function errorMessage(error: unknown, fallback = "Something went wrong. Please try again.") {
+export function errorMessage(error: unknown, fallback = "Algo deu errado. Tente novamente.") {
   if (error instanceof ConvexError) {
     const data = error.data;
     if (typeof data === "string" && data.trim()) return data;
@@ -17,7 +17,7 @@ export function errorMessage(error: unknown, fallback = "Something went wrong. P
   }
   if (error instanceof Error && error.message) {
     if (/Failed to fetch|NetworkError/i.test(error.message)) {
-      return "We could not reach the server. Check your connection and try again.";
+      return "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.";
     }
     return error.message;
   }
