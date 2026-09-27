@@ -31,7 +31,7 @@ import {
   Circle,
   IdCard,
   Loader2,
-  NotebookPen,
+  ListChecks,
   Sparkles,
   Truck,
 } from "lucide-react";
@@ -40,16 +40,18 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
 const TIME_ZONES = [
+  "America/Sao_Paulo",
+  "America/Manaus",
+  "America/Belem",
+  "America/Fortaleza",
+  "America/Recife",
+  "America/Cuiaba",
+  "America/Rio_Branco",
   "America/Los_Angeles",
-  "America/Denver",
-  "America/Chicago",
   "America/New_York",
-  "America/Toronto",
   "Europe/London",
-  "Europe/Berlin",
-  "Europe/Paris",
+  "Europe/Lisbon",
   "Europe/Madrid",
-  "Australia/Sydney",
   "UTC",
 ];
 
@@ -58,10 +60,10 @@ function CreateCompanyForm() {
   const navigate = useNavigate();
   const [values, setValues] = useState({
     name: "",
-    currency: "USD",
-    distanceUnit: "mi",
-    volumeUnit: "gal",
-    timeZone: "America/Los_Angeles",
+    currency: "BRL",
+    distanceUnit: "km",
+    volumeUnit: "l",
+    timeZone: "America/Sao_Paulo",
   });
   const [saving, setSaving] = useState(false);
 
@@ -76,7 +78,7 @@ function CreateCompanyForm() {
         volumeUnit: values.volumeUnit as "gal" | "l",
         timeZone: values.timeZone,
       });
-      toast.success("Company workspace created — welcome aboard");
+      toast.success("Espaço de trabalho criado — bem-vindo a bordo");
       navigate("/setup");
     } catch (error) {
       toast.error(errorMessage(error));
@@ -87,31 +89,31 @@ function CreateCompanyForm() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-8">
       <PageHeader
-        eyebrow="Welcome to Fleet Command"
-        title="Create your company"
-        description="One workspace per company. Your vehicles, drivers and log book will be private to this account — nobody from another company can see a thing."
+        eyebrow="Bem-vindo ao Fleet Command"
+        title="Crie sua empresa"
+        description="Um espaço de trabalho por empresa. Seus veículos, motoristas e registros serão privados desta conta — ninguém de outra empresa consegue ver nada."
       />
       <form onSubmit={submit}>
         <PaperPanel className="p-5">
-          <SectionHeading icon={Building2} hint="you can change all of this later">
-            Company basics
+          <SectionHeading icon={Building2} hint="você pode alterar tudo isso depois">
+            Dados básicos
           </SectionHeading>
           <div className="mt-4 grid gap-4">
             <div>
-              <Label htmlFor="setup-name">Company name</Label>
+              <Label htmlFor="setup-name">Nome da empresa</Label>
               <Input
                 id="setup-name"
                 value={values.name}
                 onChange={(event) => setValues((c) => ({ ...c, name: event.target.value }))}
-                placeholder="Harbourline Freight Co."
+                placeholder="Transportadora Rota Certa Ltda."
                 required
                 maxLength={80}
-                className="paper mt-1.5"
+                className="mt-1.5"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <Label htmlFor="setup-currency">Currency</Label>
+                <Label htmlFor="setup-currency">Moeda</Label>
                 <Input
                   id="setup-currency"
                   value={values.currency}
@@ -120,55 +122,55 @@ function CreateCompanyForm() {
                   }
                   maxLength={3}
                   required
-                  className="paper mt-1.5 font-mono uppercase"
+                  className="mt-1.5 font-mono uppercase"
                 />
               </div>
               <div>
-                <Label>Distance</Label>
+                <Label>Distância</Label>
                 <Select
                   value={values.distanceUnit}
                   onValueChange={(v) => setValues((c) => ({ ...c, distanceUnit: v }))}
                 >
-                  <SelectTrigger className="paper mt-1.5 w-full">
+                  <SelectTrigger className="mt-1.5 w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="paper">
+                  <SelectContent>
                     {DISTANCE_UNITS.map((unit) => (
                       <SelectItem key={unit} value={unit}>
-                        {unit === "mi" ? "Miles" : "Kilometres"}
+                        {unit === "mi" ? "Milhas" : "Quilômetros"}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Fuel volume</Label>
+                <Label>Volume de combustível</Label>
                 <Select
                   value={values.volumeUnit}
                   onValueChange={(v) => setValues((c) => ({ ...c, volumeUnit: v }))}
                 >
-                  <SelectTrigger className="paper mt-1.5 w-full">
+                  <SelectTrigger className="mt-1.5 w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="paper">
+                  <SelectContent>
                     {VOLUME_UNITS.map((unit) => (
                       <SelectItem key={unit} value={unit}>
-                        {unit === "gal" ? "Gallons" : "Litres"}
+                        {unit === "gal" ? "Galões" : "Litros"}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Time zone</Label>
+                <Label>Fuso horário</Label>
                 <Select
                   value={values.timeZone}
                   onValueChange={(v) => setValues((c) => ({ ...c, timeZone: v }))}
                 >
-                  <SelectTrigger className="paper mt-1.5 w-full">
+                  <SelectTrigger className="mt-1.5 w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="paper max-h-72">
+                  <SelectContent className="max-h-72">
                     {TIME_ZONES.map((zone) => (
                       <SelectItem key={zone} value={zone}>
                         {zone.replace(/_/g, " ")}
@@ -182,21 +184,21 @@ function CreateCompanyForm() {
           <div className="mt-5 flex items-center gap-3 border-t border-dashed border-border/70 pt-4">
             <Button type="submit" disabled={saving} className="gap-2">
               {saving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-              Create workspace
+              Criar espaço de trabalho
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
             <p className="text-xs text-muted-foreground">
-              You will be the owner with full access.
+              Você será o proprietário, com acesso total.
             </p>
           </div>
         </PaperPanel>
       </form>
       <StickyNote rotate="-0.8deg">
-        <p className="font-hand text-xl">Why a company first?</p>
+        <p className="text-sm font-semibold">Por que começar pela empresa?</p>
         <p className="mt-1 text-sm leading-6">
-          Fleet Command is built for teams. The company is the boundary that keeps your register
-          private and lets you invite dispatchers, mechanics and accountants with the right level of
-          access later.
+          O Fleet Command foi feito para equipes. A empresa é a fronteira que mantém seu cadastro
+          privado e permite convidar despachantes, mecânicos e financeiro com o nível certo de acesso
+          depois.
         </p>
       </StickyNote>
     </div>
@@ -217,35 +219,35 @@ function SetupChecklist() {
   const canEdit = role === "owner" || role === "admin" || role === "fleet_manager";
 
   if (progress === undefined || progress === null) {
-    return <LoadingNote label="Checking your setup…" />;
+    return <LoadingNote label="Verificando sua configuração…" />;
   }
 
   const checklist = [
     {
-      label: "Company details on file",
+      label: "Dados da empresa preenchidos",
       done: true,
       hint: org?.name,
       icon: Building2,
     },
     {
-      label: "First vehicle on the register",
+      label: "Primeiro veículo no cadastro",
       done: progress.hasVehicle,
-      hint: progress.hasVehicle ? "Added" : "Add the units you operate",
+      hint: progress.hasVehicle ? "Adicionado" : "Cadastre as unidades que você opera",
       icon: Truck,
       action: (
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setVehicleOpen(true)} disabled={!canEdit}>
-          <Truck className="size-3.5" aria-hidden="true" /> Add vehicle
+          <Truck className="size-3.5" aria-hidden="true" /> Adicionar veículo
         </Button>
       ),
     },
     {
-      label: "First driver on the roster",
+      label: "Primeiro motorista na equipe",
       done: progress.hasDriver,
-      hint: progress.hasDriver ? "Added" : "Add who drives them",
+      hint: progress.hasDriver ? "Adicionado" : "Cadastre quem dirige",
       icon: IdCard,
       action: (
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDriverOpen(true)} disabled={!canEdit}>
-          <IdCard className="size-3.5" aria-hidden="true" /> Add driver
+          <IdCard className="size-3.5" aria-hidden="true" /> Adicionar motorista
         </Button>
       ),
     },
@@ -257,7 +259,7 @@ function SetupChecklist() {
     try {
       const result = await seedDemo({});
       toast.success(
-        `Loaded ${result.vehicles} sample vehicles and ${result.drivers} sample drivers`,
+        `Carregados ${result.vehicles} veículos e ${result.drivers} motoristas de exemplo`,
       );
     } catch (error) {
       toast.error(errorMessage(error));
@@ -270,7 +272,7 @@ function SetupChecklist() {
     setFinishing(true);
     try {
       await completeSetup({});
-      toast.success("Setup complete — the register is yours");
+      toast.success("Configuração concluída — o cadastro é seu");
       navigate("/dashboard");
     } catch (error) {
       toast.error(errorMessage(error));
@@ -281,18 +283,18 @@ function SetupChecklist() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow={`${org?.name ?? "Your company"} · getting started`}
-        title="Setup checklist"
-        description="Three quick steps and the register is live. Everything you enter here is kept private to your company and recorded in the log book."
+        eyebrow={`${org?.name ?? "Sua empresa"} · primeiros passos`}
+        title="Lista de configuração"
+        description="Três passos rápidos e o cadastro está no ar. Tudo o que você inserir aqui fica privado da sua empresa e registrado no livro de registros."
         actions={
           <Stamp tone={done === checklist.length ? "ok" : "info"} rotate={false}>
-            {done} of {checklist.length} done
+            {done} de {checklist.length} concluído
           </Stamp>
         }
       />
 
       <PaperPanel className="p-5">
-        <SectionHeading icon={NotebookPen}>The checklist</SectionHeading>
+        <SectionHeading icon={ListChecks}>A lista</SectionHeading>
         <ul className="mt-4 divide-y divide-dashed divide-border/60">
           {checklist.map((item) => (
             <li key={item.label} className="flex flex-wrap items-center gap-3 py-3.5">
@@ -314,13 +316,13 @@ function SetupChecklist() {
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-dashed border-border/70 pt-4">
           <Button onClick={finish} disabled={finishing} className="gap-2">
             {finishing ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-            {done === checklist.length ? "Finish setup" : "Skip ahead to the dashboard"}
+            {done === checklist.length ? "Concluir configuração" : "Ir direto para o painel"}
             <ArrowRight className="size-4" aria-hidden="true" />
           </Button>
           {!progress.hasVehicle && canEdit ? (
             <Button variant="outline" onClick={loadSamples} disabled={seeding} className="gap-2">
               <Sparkles className="size-4" aria-hidden="true" />
-              {seeding ? "Loading…" : "Load sample fleet instead"}
+              {seeding ? "Carregando…" : "Carregar frota de exemplo"}
             </Button>
           ) : null}
         </div>
@@ -328,33 +330,34 @@ function SetupChecklist() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <PaperPanel className="p-5">
-          <SectionHeading icon={Truck} hint="what happens next">
-            After setup
+          <SectionHeading icon={Truck} hint="o que vem depois">
+            Depois da configuração
           </SectionHeading>
           <ul className="mt-3 space-y-2.5 text-sm leading-6 text-muted-foreground">
             <li>
-              <Link to="/vehicles" className="text-pen underline">The register</Link> lists every
-              unit with insurance, registration and service dates watched for you.
+              <Link to="/vehicles" className="text-pen underline">O cadastro</Link> lista cada unidade
+              com seguro, licenciamento e revisões monitorados para você.
             </li>
             <li>
-              <Link to="/drivers" className="text-pen underline">The roster</Link> tracks licences
-              and medical cards, and links each driver to their unit.
+              <Link to="/drivers" className="text-pen underline">A equipe</Link> acompanha CNH e exame
+              toxicológico, e vincula cada motorista à sua unidade.
             </li>
             <li>
-              Assigning is one dropdown — on the vehicle or the driver, both records stay in step.
+              A vinculação é um único campo — no veículo ou no motorista, os dois registros ficam
+              sincronizados.
             </li>
             <li>
-              <Link to="/logbook" className="text-pen underline">The log book</Link> records every
-              change, so you always know who did what.
+              <Link to="/settings?tab=logbook" className="text-pen underline">O livro de registros</Link>{" "}
+              grava cada alteração, para você sempre saber quem fez o quê.
             </li>
           </ul>
         </PaperPanel>
         <StickyNote rotate="1deg">
-          <p className="font-hand text-xl">A tip from the road</p>
+          <p className="text-sm font-semibold">Uma dica de estrada</p>
           <p className="mt-1 text-sm leading-6">
-            Enter the odometer and the expiry dates when you add each unit. From then on Fleet
-            Command raises the flag in the bell and on the dashboard — weeks before the paperwork
-            lapses, not after.
+            Informe o hodômetro e as datas de vencimento ao cadastrar cada unidade. A partir daí o
+            Fleet Command levanta a bandeira no sino e no painel — semanas antes do documento vencer,
+            não depois.
           </p>
         </StickyNote>
       </div>
@@ -371,7 +374,7 @@ export default function SetupPage() {
   if (workspace === undefined) {
     return (
       <AppShell>
-        <LoadingNote label="Opening setup…" />
+        <LoadingNote label="Abrindo a configuração…" />
       </AppShell>
     );
   }

@@ -5,29 +5,23 @@ import { VehicleFormDialog } from "@/components/vehicle-form";
 import {
   EmptyNote,
   KpiCard,
-  LedgerList,
-  LedgerRow,
   LoadingNote,
   LogEntry,
   PageHeader,
   PaperPanel,
   SectionHeading,
   Stamp,
-  StickyNote,
 } from "@/components/notebook";
 import { Button } from "@/components/ui/button";
 import { canEditFleet, useWorkspace } from "@/hooks/use-workspace";
 import {
   ACTIVITY_ACTION_LABELS,
-  DRIVER_STATUS_META,
-  VEHICLE_STATUS_META,
   VEHICLE_TYPE_LABELS,
   formatCurrency,
   formatDistance,
   formatNumber,
   labelFrom,
   pluralize,
-  statusMeta,
   timeAgo,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -39,13 +33,14 @@ import {
   CalendarClock,
   CheckCircle2,
   Circle,
+  ClipboardList,
   Fuel,
   Gauge,
   IdCard,
-  NotebookPen,
   Plus,
   Truck,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -60,7 +55,7 @@ export default function DashboardPage() {
   if (dashboard === undefined) {
     return (
       <AppShell>
-        <LoadingNote label="Opening the register…" />
+        <LoadingNote label="Abrindo o painel…" />
       </AppShell>
     );
   }
@@ -69,12 +64,12 @@ export default function DashboardPage() {
     return (
       <AppShell>
         <EmptyNote
-          icon={NotebookPen}
-          title="No company yet"
-          description="Create your company profile and Fleet Command will start keeping the register for you."
+          icon={ClipboardList}
+          title="Nenhuma empresa ainda"
+          description="Crie o perfil da empresa e o Fleet Command começa a cuidar do seu cadastro para você."
           action={
             <Button asChild>
-              <Link to="/setup">Start setup</Link>
+              <Link to="/setup">Começar configuração</Link>
             </Button>
           }
         />
@@ -86,19 +81,23 @@ export default function DashboardPage() {
   const hasFleet = counts.vehicles > 0;
   const hasDrivers = counts.drivers > 0;
   const checklist = [
-    { label: "Company details", done: Boolean(setup.hasOrgDetails) },
-    { label: "First vehicle on the register", done: setup.hasVehicle },
-    { label: "First driver on the roster", done: setup.hasDriver },
+    { label: "Dados da empresa", done: Boolean(setup.hasOrgDetails) },
+    { label: "Primeiro veículo no cadastro", done: setup.hasVehicle },
+    { label: "Primeiro motorista na equipe", done: setup.hasDriver },
   ];
   const checklistDone = checklist.filter((item) => item.done).length;
+  const maintenanceAlerts = attention.filter((item) => item.kind === "service");
+  const pendingAlerts = attention.filter(
+    (item) => item.kind === "compliance" || item.kind === "status",
+  );
 
   return (
     <AppShell>
       <div className="flex flex-col gap-7">
         <PageHeader
-          eyebrow={`${org?.name ?? "Your company"} · fleet register`}
-          title="Command center"
-          description="Everything the owner needs at a glance: what is on the road, what is standing still, and what paperwork is about to lapse."
+          eyebrow={`${org?.name ?? "Sua empresa"} · painel da frota`}
+          title="Centro de comando"
+          description="Tudo o que o gestor precisa em uma tela: o que está rodando, o que está parado e qual documentação está prestes a vencer."
           actions={
             <>
               <Button
@@ -106,109 +105,99 @@ export default function DashboardPage() {
                 className="gap-2"
                 onClick={() => setDriverOpen(true)}
                 disabled={!canEdit}
-                title={canEdit ? undefined : "Your role has read-only access"}
+                title={canEdit ? undefined : "Seu papel é somente leitura"}
               >
-                <IdCard className="size-4" aria-hidden="true" /> Add driver
+                <IdCard className="size-4" aria-hidden="true" /> Adicionar motorista
               </Button>
               <Button
                 className="gap-2"
                 onClick={() => setVehicleOpen(true)}
                 disabled={!canEdit}
-                title={canEdit ? undefined : "Your role has read-only access"}
+                title={canEdit ? undefined : "Seu papel é somente leitura"}
               >
-                <Plus className="size-4" aria-hidden="true" /> Add vehicle
+                <Plus className="size-4" aria-hidden="true" /> Adicionar veículo
               </Button>
             </>
           }
         />
 
         {checklistDone < checklist.length ? (
-          <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-            <PaperPanel className="flex flex-col gap-3 p-5">
-              <SectionHeading icon={NotebookPen} hint={`${checklistDone} of ${checklist.length} done`}>
-                Setup checklist
-              </SectionHeading>
-              <ul className="space-y-1.5">
-                {checklist.map((item) => (
-                  <li key={item.label} className="flex items-center gap-2.5 text-sm">
-                    {item.done ? (
-                      <CheckCircle2 className="size-4 text-stamp-ok" aria-hidden="true" />
-                    ) : (
-                      <Circle className="size-4 text-muted-foreground" aria-hidden="true" />
-                    )}
-                    <span className={cn(item.done && "text-muted-foreground line-through")}>
-                      {item.label}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Button variant="outline" size="sm" className="self-start gap-2" asChild>
-                <Link to="/setup">
-                  Open the checklist <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                </Link>
-              </Button>
-            </PaperPanel>
-            <StickyNote rotate="1.2deg">
-              <p className="font-hand text-xl">Start here</p>
-              <p className="mt-1 leading-6">
-                Add your units first, then your drivers. Assigning a driver to a vehicle is a single
-                dropdown — Fleet Command keeps both records in step for you.
-              </p>
-            </StickyNote>
-          </div>
+          <PaperPanel className="flex flex-col gap-3 p-5">
+            <SectionHeading icon={ClipboardList} hint={`${checklistDone} de ${checklist.length} concluído`}>
+              Lista de configuração
+            </SectionHeading>
+            <ul className="space-y-1.5">
+              {checklist.map((item) => (
+                <li key={item.label} className="flex items-center gap-2.5 text-sm">
+                  {item.done ? (
+                    <CheckCircle2 className="size-4 text-stamp-ok" aria-hidden="true" />
+                  ) : (
+                    <Circle className="size-4 text-muted-foreground" aria-hidden="true" />
+                  )}
+                  <span className={cn(item.done && "text-muted-foreground line-through")}>
+                    {item.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Button variant="outline" size="sm" className="self-start gap-2" asChild>
+              <Link to="/setup">
+                Abrir a lista <ArrowUpRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            </Button>
+          </PaperPanel>
         ) : null}
 
-        <section aria-label="Fleet totals" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="Totais da frota" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            label="Vehicles on register"
+            label="Veículos no cadastro"
             value={formatNumber(counts.vehicles)}
-            hint={`${counts.inService} in service · ${counts.retired} retired or sold`}
+            hint={`${counts.inService} em operação · ${counts.retired} aposentados ou vendidos`}
             icon={Truck}
-            tape
           />
           <KpiCard
-            label="Drivers"
+            label="Motoristas"
             value={formatNumber(counts.drivers)}
-            hint={`${counts.activeDrivers} active · ${counts.unassignedDrivers} without a unit`}
+            hint={`${counts.activeDrivers} ativos · ${counts.unassignedDrivers} sem unidade`}
             icon={IdCard}
             tone={counts.unassignedDrivers ? "warn" : "neutral"}
           />
           <KpiCard
-            label="Utilisation"
+            label="Utilização da frota"
             value={`${utilization}%`}
-            hint={`${counts.assigned} of ${counts.inService} in-service units assigned`}
+            hint={`${counts.assigned} de ${counts.inService} unidades em operação com motorista`}
             icon={BadgeCheck}
             tone={utilization >= 70 ? "ok" : utilization > 0 ? "warn" : "neutral"}
           />
           <KpiCard
-            label="Documents flagged"
+            label="Pendências abertas"
             value={formatNumber(attentionCounts.total)}
-            hint={`${attentionCounts.critical} overdue · ${attentionCounts.warning} expiring soon`}
+            hint={`${attentionCounts.critical} críticas · ${attentionCounts.warning} em alerta`}
             icon={AlertTriangle}
             tone={attentionCounts.critical ? "bad" : attentionCounts.warning ? "warn" : "ok"}
           />
           <KpiCard
-            label="Book value"
+            label="Valor contábil"
             value={formatCurrency(value.bookValue, currency)}
-            hint={`Acquired for ${formatCurrency(value.acquisitionTotal, currency)}`}
+            hint={`Adquiridos por ${formatCurrency(value.acquisitionTotal, currency)}`}
             icon={Wallet}
           />
           <KpiCard
-            label="Depreciation to date"
+            label="Depreciação acumulada"
             value={formatCurrency(value.depreciation, currency)}
-            hint="Acquisition cost less current value"
+            hint="Custo de aquisição menos valor atual"
             icon={Wallet}
           />
           <KpiCard
-            label="Distance on the clock"
+            label="Distância acumulada"
             value={formatDistance(odometer.total, distanceUnit)}
-            hint={`Average ${formatDistance(odometer.average, distanceUnit)} per unit`}
+            hint={`Média de ${formatDistance(odometer.average, distanceUnit)} por unidade`}
             icon={Gauge}
           />
           <KpiCard
-            label="Highest odometer"
+            label="Maior hodômetro"
             value={formatDistance(odometer.highest.odometer, distanceUnit)}
-            hint={`Unit ${odometer.highest.unit}`}
+            hint={`Unidade ${odometer.highest.unit}`}
             icon={Fuel}
           />
         </section>
@@ -217,20 +206,34 @@ export default function DashboardPage() {
           <PaperPanel id="attention" className="p-5">
             <SectionHeading
               icon={AlertTriangle}
-              hint={attention.length ? `${attention.length} open` : "all clear"}
+              hint={attention.length ? `${attention.length} em aberto` : "tudo em ordem"}
             >
-              Needs attention
+              Precisa de atenção
             </SectionHeading>
             {attention.length ? (
               <ul className="mt-3 divide-y divide-dashed divide-border/60">
-                {attention.slice(0, 9).map((item) => (
+                {attention.slice(0, 10).map((item) => (
                   <li key={item.id}>
                     <Link
                       to={item.href}
                       className="flex items-start gap-3 py-2.5 transition-colors hover:bg-muted/50"
                     >
-                      <Stamp tone={item.severity === "critical" ? "bad" : item.severity === "warning" ? "warn" : "info"}>
-                        {item.kind}
+                      <Stamp
+                        tone={
+                          item.severity === "critical"
+                            ? "bad"
+                            : item.severity === "warning"
+                              ? "warn"
+                              : "info"
+                        }
+                      >
+                        {item.kind === "service"
+                          ? "Manutenção"
+                          : item.kind === "compliance"
+                            ? "Documento"
+                            : item.kind === "assignment"
+                              ? "Vinculação"
+                              : "Status"}
                       </Stamp>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-ink">{item.title}</span>
@@ -244,96 +247,77 @@ export default function DashboardPage() {
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">
                 {hasFleet
-                  ? "Every compliance date is comfortably in the future. Nothing is overdue."
-                  : "Add your first unit and Fleet Command will start watching insurance, registration and service dates for you."}
+                  ? "Todas as datas de conformidade estão tranquilas no futuro. Nada vencido."
+                  : "Adicione a primeira unidade e o Fleet Command começa a monitorar seguro, licenciamento e revisões para você."}
               </p>
             )}
           </PaperPanel>
 
           <div className="flex flex-col gap-5">
             <PaperPanel className="p-5">
-              <SectionHeading icon={Truck} hint={`${counts.vehicles} total`}>
-                Register board
+              <SectionHeading
+                icon={Wrench}
+                hint={maintenanceAlerts.length ? `${maintenanceAlerts.length} em aberto` : "em dia"}
+              >
+                Alertas de manutenção
               </SectionHeading>
-              {hasFleet ? (
+              {maintenanceAlerts.length ? (
                 <ul className="mt-3 space-y-2.5">
-                  {Object.entries(counts.statusCounts)
-                    .filter(([, count]) => count > 0)
-                    .map(([status, count]) => {
-                      const meta = statusMeta(VEHICLE_STATUS_META, status);
-                      const percent = Math.round((count / counts.vehicles) * 100);
-                      return (
-                        <li key={status} className="flex items-center gap-3">
-                          <span className="w-32 shrink-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            {meta.label}
-                          </span>
-                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                            <span
-                              className={cn(
-                                "block h-full rounded-full",
-                                meta.tone === "ok"
-                                  ? "bg-stamp-ok/70"
-                                  : meta.tone === "warn"
-                                    ? "bg-stamp-warn/70"
-                                    : meta.tone === "bad"
-                                      ? "bg-stamp-bad/70"
-                                      : "bg-pen/60",
-                              )}
-                              style={{ width: `${Math.max(percent, 4)}%` }}
-                            />
-                          </span>
-                          <span className="w-14 shrink-0 text-right font-mono text-xs text-ink tabular-nums">
-                            {count} · {percent}%
-                          </span>
-                        </li>
-                      );
-                    })}
+                  {maintenanceAlerts.slice(0, 6).map((item) => (
+                    <li key={item.id} className="border-b border-dashed border-border/60 pb-2 last:border-0">
+                      <Link to={item.href} className="block hover:text-pen">
+                        <span className="block text-sm font-medium text-ink">{item.title}</span>
+                        <span className="block text-xs text-muted-foreground">{item.detail}</span>
+                      </Link>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  No units yet. The register board fills in as soon as you add vehicles.
+                  {hasFleet
+                    ? "Nenhuma revisão vencida ou por vencer. Registre as manutenções para manter o histórico completo."
+                    : "Registre manutenções por veículo — serviços, peças, valores, quilometragem e local."}
                 </p>
               )}
               <Button variant="outline" size="sm" className="mt-4 self-start" asChild>
-                <Link to="/vehicles">Open the register</Link>
+                <Link to="/vehicles">Ver unidades</Link>
               </Button>
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading icon={IdCard} hint={`${counts.activeDrivers} active`}>
-                Driver roster
+              <SectionHeading
+                icon={CalendarClock}
+                hint={pendingAlerts.length ? `${pendingAlerts.length} em aberto` : "em dia"}
+              >
+                Documentos e impostos
               </SectionHeading>
-              {dashboard.driverRoster.length ? (
-                <LedgerList className="mt-2">
-                  {dashboard.driverRoster.map((driver) => {
-                    const meta = statusMeta(DRIVER_STATUS_META, driver.status);
-                    return (
-                      <LedgerRow key={driver.id} label={driver.vehicleUnit ? `Unit ${driver.vehicleUnit}` : "Unassigned"}>
-                        <Link className="hover:text-pen hover:underline" to={`/drivers/${driver.id}`}>
-                          {driver.name}
-                        </Link>
-                        <span className="ml-2">
-                          <Stamp tone={meta.tone}>{meta.label}</Stamp>
-                        </span>
-                      </LedgerRow>
-                    );
-                  })}
-                </LedgerList>
+              {pendingAlerts.length ? (
+                <ul className="mt-3 space-y-2.5">
+                  {pendingAlerts.slice(0, 6).map((item) => (
+                    <li key={item.id} className="border-b border-dashed border-border/60 pb-2 last:border-0">
+                      <Link to={item.href} className="block hover:text-pen">
+                        <span className="block text-sm font-medium text-ink">{item.title}</span>
+                        <span className="block text-xs text-muted-foreground">{item.detail}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  {hasDrivers
-                    ? "No active drivers on the roster right now."
-                    : "Add your drivers so the register knows who runs each unit."}
+                  Nenhum documento, imposto ou renovação pendente no momento.
                 </p>
               )}
+              <Button variant="outline" size="sm" className="mt-4 self-start" asChild>
+                <Link to="/vehicles">Abrir unidades</Link>
+              </Button>
             </PaperPanel>
           </div>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[1.35fr_1fr]">
           <PaperPanel className="p-5">
-            <SectionHeading icon={NotebookPen} hint="every change is recorded">
-              Log book
+            <SectionHeading icon={ClipboardList} hint="toda alteração fica registrada">
+              Últimas atividades
             </SectionHeading>
             {dashboard.recentActivity.length ? (
               <ul className="mt-3 space-y-3">
@@ -354,17 +338,17 @@ export default function DashboardPage() {
               </ul>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">
-                The log book records every create, edit, assignment and status change.
+                O livro de registros grava cada cadastro, edição, vinculação e mudança de status.
               </p>
             )}
             <Button variant="ghost" size="sm" className="mt-2 self-start" asChild>
-              <Link to="/logbook">Read the full log book</Link>
+              <Link to="/settings?tab=logbook">Ver o livro completo</Link>
             </Button>
           </PaperPanel>
 
           <PaperPanel className="p-5">
-            <SectionHeading icon={CalendarClock} hint="by vehicle type">
-              Fleet composition
+            <SectionHeading icon={Truck} hint="por tipo de veículo">
+              Composição da frota
             </SectionHeading>
             {counts.typeCounts.length ? (
               <ul className="mt-3 space-y-2">
@@ -381,10 +365,11 @@ export default function DashboardPage() {
                 ))}
               </ul>
             ) : (
-              <p className="mt-4 text-sm text-muted-foreground">Nothing registered yet.</p>
+              <p className="mt-4 text-sm text-muted-foreground">Nada cadastrado ainda.</p>
             )}
-            <p className="mt-4 font-hand text-lg text-muted-foreground">
-              {pluralize(counts.vehicles, "unit")} · {pluralize(counts.drivers, "driver")}
+            <p className="mt-4 text-sm text-muted-foreground">
+              {pluralize(counts.vehicles, "unidade")} · {pluralize(counts.drivers, "motorista")}
+              {hasDrivers ? "" : " — cadastre a equipe para vincular às unidades"}
             </p>
           </PaperPanel>
         </div>

@@ -63,7 +63,7 @@ export default function DriverDetailPage() {
   if (data === undefined) {
     return (
       <AppShell>
-        <LoadingNote label="Pulling the driver file…" />
+        <LoadingNote label="Abrindo o prontuário do motorista…" />
       </AppShell>
     );
   }
@@ -73,11 +73,11 @@ export default function DriverDetailPage() {
       <AppShell>
         <EmptyNote
           icon={IdCard}
-          title="That driver is not on your roster"
-          description="The record may have been removed, or the link belongs to another company."
+          title="Esse motorista não está na sua equipe"
+          description="O registro pode ter sido removido, ou o link pertence a outra empresa."
           action={
             <Button asChild>
-              <Link to="/drivers">Back to the roster</Link>
+              <Link to="/drivers">Voltar à equipe</Link>
             </Button>
           }
         />
@@ -95,7 +95,7 @@ export default function DriverDetailPage() {
   async function remove() {
     try {
       await deleteDriver({ driverId: driver.id });
-      toast.success(`${driver.name} removed from the roster`);
+      toast.success(`${driver.name} removido da equipe`);
       navigate("/drivers");
     } catch (error) {
       toast.error(errorMessage(error));
@@ -107,38 +107,38 @@ export default function DriverDetailPage() {
       <div className="flex flex-col gap-6">
         <Button variant="ghost" size="sm" className="w-fit gap-1.5" asChild>
           <Link to="/drivers">
-            <ArrowLeft className="size-4" aria-hidden="true" /> Driver roster
+            <ArrowLeft className="size-4" aria-hidden="true" /> Equipe de motoristas
           </Link>
         </Button>
 
         <PaperPanel className="p-5">
           <PageHeader
-            eyebrow="Driver file"
+            eyebrow="Prontuário do motorista"
             title={driver.name}
             description={`${labelFrom(COMPENSATION_LABELS, driver.compensationModel)}${driver.depot ? ` · ${driver.depot}` : ""}`}
             actions={
               <>
                 <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)} disabled={!canEdit}>
-                  <Pencil className="size-4" aria-hidden="true" /> Edit record
+                  <Pencil className="size-4" aria-hidden="true" /> Editar registro
                 </Button>
                 {canDelete ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="gap-2 text-stamp-bad">
-                        <Trash2 className="size-4" aria-hidden="true" /> Remove
+                        <Trash2 className="size-4" aria-hidden="true" /> Remover
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="paper">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Remove {driver.name}?</AlertDialogTitle>
+                        <AlertDialogTitle>Remover {driver.name}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          The driver leaves the roster and any assigned unit is released. This
-                          cannot be undone.
+                          O motorista sai da equipe e qualquer unidade vinculada é liberada. Esta ação
+                          não pode ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Keep the driver</AlertDialogCancel>
-                        <AlertDialogAction onClick={remove}>Remove driver</AlertDialogAction>
+                        <AlertDialogCancel>Manter o motorista</AlertDialogCancel>
+                        <AlertDialogAction onClick={remove}>Remover motorista</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -150,7 +150,7 @@ export default function DriverDetailPage() {
             <Stamp tone={meta.tone}>{meta.label}</Stamp>
             {driver.licenseClass ? (
               <Stamp tone="neutral" rotate={false}>
-                Class {driver.licenseClass}
+                Categoria {driver.licenseClass}
               </Stamp>
             ) : null}
             {driver.phone ? (
@@ -160,35 +160,35 @@ export default function DriverDetailPage() {
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
-              label="Licence"
+              label="CNH"
               value={driver.licenseExpiry ? formatDate(driver.licenseExpiry) : "—"}
               hint={driver.licenseNumber}
               tone={license.tone}
             />
             <KpiCard
-              label="Medical card"
+              label="Exame toxicológico"
               value={driver.medicalExpiry ? formatDate(driver.medicalExpiry) : "—"}
               hint={medical.label}
               tone={medical.tone}
             />
             <KpiCard
-              label="Unit"
-              value={assignedVehicle ? `Unit ${assignedVehicle.unitNumber}` : "—"}
+              label="Unidade"
+              value={assignedVehicle ? `Unidade ${assignedVehicle.unitNumber}` : "—"}
               hint={
                 assignedVehicle
                   ? `${assignedVehicle.make} ${assignedVehicle.model} · ${formatDistance(assignedVehicle.odometer, distanceUnit)}`
-                  : "No unit assigned"
+                  : "Nenhuma unidade vinculada"
               }
               tone={assignedVehicle ? "ok" : "info"}
             />
             <KpiCard
-              label="Pay"
+              label="Remuneração"
               value={
                 driver.rate !== null
                   ? driver.compensationModel === "salary"
                     ? formatCurrency(driver.rate, currency)
                     : driver.compensationModel === "hourly"
-                      ? `${currency} ${driver.rate}/hr`
+                      ? `${currency} ${driver.rate}/h`
                       : driver.compensationModel === "per_mile"
                         ? `${currency} ${driver.rate}/${distanceUnit}`
                         : formatCurrency(driver.rate, currency)
@@ -201,51 +201,51 @@ export default function DriverDetailPage() {
 
         <Tabs defaultValue="overview" className="gap-4">
           <TabsList className="paper h-auto flex-wrap justify-start gap-1 rounded-lg border border-border p-1">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="credentials">Credentials</TabsTrigger>
-            <TabsTrigger value="assignment">Unit assignment</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="overview">Visão geral</TabsTrigger>
+            <TabsTrigger value="credentials">Credenciais</TabsTrigger>
+            <TabsTrigger value="assignment">Unidade vinculada</TabsTrigger>
+            <TabsTrigger value="notes">Observações</TabsTrigger>
+            <TabsTrigger value="activity">Atividade</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="grid gap-5 lg:grid-cols-2">
             <PaperPanel className="p-5">
-              <SectionHeading hint="on the roster">Driver</SectionHeading>
+              <SectionHeading hint="na equipe">Motorista</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Name">{driver.name}</LedgerRow>
-                <LedgerRow label="Status">{meta.label}</LedgerRow>
-                <LedgerRow label="Phone" mono>
+                <LedgerRow label="Nome">{driver.name}</LedgerRow>
+                <LedgerRow label="Situação">{meta.label}</LedgerRow>
+                <LedgerRow label="Telefone" mono>
                   {driver.phone}
                 </LedgerRow>
-                <LedgerRow label="Email">{driver.email}</LedgerRow>
-                <LedgerRow label="Address">{driver.addressLine}</LedgerRow>
-                <LedgerRow label="City">{driver.city}</LedgerRow>
-                <LedgerRow label="Hired">{formatDate(driver.hireDate)}</LedgerRow>
-                <LedgerRow label="Depot / yard">{driver.depot}</LedgerRow>
+                <LedgerRow label="E-mail">{driver.email}</LedgerRow>
+                <LedgerRow label="Endereço">{driver.addressLine}</LedgerRow>
+                <LedgerRow label="Cidade">{driver.city}</LedgerRow>
+                <LedgerRow label="Admissão">{formatDate(driver.hireDate)}</LedgerRow>
+                <LedgerRow label="Base / pátio">{driver.depot}</LedgerRow>
               </LedgerList>
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="how they are paid">Compensation</SectionHeading>
+              <SectionHeading hint="como ele é remunerado">Remuneração</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Model">
+                <LedgerRow label="Modelo">
                   {labelFrom(COMPENSATION_LABELS, driver.compensationModel)}
                 </LedgerRow>
-                <LedgerRow label="Rate" mono>
+                <LedgerRow label="Valor" mono>
                   {driver.rate !== null
                     ? driver.compensationModel === "salary"
-                      ? `${formatCurrency(driver.rate, currency)} / year`
+                      ? `${formatCurrency(driver.rate, currency)} / ano`
                       : driver.compensationModel === "hourly"
-                        ? `${currency} ${formatNumber(driver.rate)} / hr`
+                        ? `${currency} ${formatNumber(driver.rate)} / h`
                         : driver.compensationModel === "per_mile"
                           ? `${currency} ${driver.rate} / ${distanceUnit}`
                           : driver.compensationModel === "per_trip"
-                            ? `${currency} ${formatNumber(driver.rate)} / trip`
+                            ? `${currency} ${formatNumber(driver.rate)} / viagem`
                             : formatCurrency(driver.rate, currency)
                     : null}
                 </LedgerRow>
-                <LedgerRow label="Emergency contact">{driver.emergencyContactName}</LedgerRow>
-                <LedgerRow label="Contact phone" mono>
+                <LedgerRow label="Contato de emergência">{driver.emergencyContactName}</LedgerRow>
+                <LedgerRow label="Telefone de emergência" mono>
                   {driver.emergencyContactPhone}
                 </LedgerRow>
               </LedgerList>
@@ -254,13 +254,13 @@ export default function DriverDetailPage() {
 
           <TabsContent value="credentials" className="grid gap-5 lg:grid-cols-2">
             <PaperPanel className="p-5">
-              <SectionHeading hint="we flag anything inside 45 days">Licence</SectionHeading>
+              <SectionHeading hint="avisamos com 45 dias de antecedência">CNH</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Number" mono>
+                <LedgerRow label="Número" mono>
                   {driver.licenseNumber}
                 </LedgerRow>
-                <LedgerRow label="Class">{driver.licenseClass}</LedgerRow>
-                <LedgerRow label="Expires">{formatDate(driver.licenseExpiry)}</LedgerRow>
+                <LedgerRow label="Categoria">{driver.licenseClass}</LedgerRow>
+                <LedgerRow label="Vence em">{formatDate(driver.licenseExpiry)}</LedgerRow>
               </LedgerList>
               <div className="mt-3">
                 <Stamp tone={license.tone}>{license.label}</Stamp>
@@ -268,9 +268,9 @@ export default function DriverDetailPage() {
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="driver fitness">Medical card</SectionHeading>
+              <SectionHeading hint="aptidão do motorista">Exame toxicológico</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Expires">{formatDate(driver.medicalExpiry)}</LedgerRow>
+                <LedgerRow label="Vence em">{formatDate(driver.medicalExpiry)}</LedgerRow>
               </LedgerList>
               <div className="mt-3">
                 <Stamp tone={medical.tone}>{medical.label}</Stamp>
@@ -280,11 +280,11 @@ export default function DriverDetailPage() {
 
           <TabsContent value="assignment" className="grid gap-5 lg:grid-cols-2">
             <PaperPanel className="p-5">
-              <SectionHeading hint="which unit they run">Current unit</SectionHeading>
+              <SectionHeading hint="qual unidade ele opera">Unidade atual</SectionHeading>
               {assignedVehicle ? (
                 <>
                   <LedgerList className="mt-3">
-                    <LedgerRow label="Unit" mono>
+                    <LedgerRow label="Unidade" mono>
                       <Link
                         to={`/vehicles/${assignedVehicle.id}`}
                         className="font-mono hover:text-pen hover:underline"
@@ -292,30 +292,30 @@ export default function DriverDetailPage() {
                         {assignedVehicle.unitNumber}
                       </Link>
                     </LedgerRow>
-                    <LedgerRow label="Vehicle">
+                    <LedgerRow label="Veículo">
                       {assignedVehicle.make} {assignedVehicle.model}
                     </LedgerRow>
-                    <LedgerRow label="Odometer" mono>
+                    <LedgerRow label="Hodômetro" mono>
                       {formatDistance(assignedVehicle.odometer, distanceUnit)}
                     </LedgerRow>
-                    <LedgerRow label="Unit status">
+                    <LedgerRow label="Situação da unidade">
                       <Stamp tone={statusMeta(VEHICLE_STATUS_META, assignedVehicle.status).tone}>
                         {statusMeta(VEHICLE_STATUS_META, assignedVehicle.status).label}
                       </Stamp>
                     </LedgerRow>
                   </LedgerList>
                   <Button variant="outline" size="sm" className="mt-4" asChild>
-                    <Link to={`/vehicles/${assignedVehicle.id}`}>Open the unit file</Link>
+                    <Link to={`/vehicles/${assignedVehicle.id}`}>Abrir prontuário da unidade</Link>
                   </Button>
                 </>
               ) : (
                 <div className="mt-3">
                   <EmptyNote
-                    title="No unit assigned"
-                    description="Assign a unit from this driver's edit form — both records stay in step automatically."
+                    title="Nenhuma unidade vinculada"
+                    description="Vincule uma unidade pelo formulário deste motorista — os dois registros ficam sincronizados automaticamente."
                     action={
                       <Button className="gap-2" onClick={() => setEditOpen(true)} disabled={!canEdit}>
-                        <Pencil className="size-4" aria-hidden="true" /> Assign a unit
+                        <Pencil className="size-4" aria-hidden="true" /> Vincular unidade
                       </Button>
                     }
                   />
@@ -324,7 +324,7 @@ export default function DriverDetailPage() {
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="available in the register">Vehicle options</SectionHeading>
+              <SectionHeading hint="disponíveis no cadastro">Opções de veículo</SectionHeading>
               <ul className="mt-3 space-y-2">
                 {vehicleOptions.length ? (
                   vehicleOptions.map((option) => (
@@ -336,15 +336,15 @@ export default function DriverDetailPage() {
                         {option.label}
                       </Link>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {option.taken ? "assigned" : "free"}
+                        {option.taken ? "com motorista" : "livre"}
                       </span>
                     </li>
                   ))
                 ) : (
                   <li className="text-sm text-muted-foreground">
-                    No vehicles on the register yet.{" "}
+                    Nenhum veículo no cadastro ainda.{" "}
                     <Link to="/vehicles" className="text-pen underline">
-                      Add a vehicle
+                      Adicionar veículo
                     </Link>
                     .
                   </li>
@@ -355,16 +355,16 @@ export default function DriverDetailPage() {
 
           <TabsContent value="notes">
             <PaperPanel className="p-5">
-              <SectionHeading hint="free text, visible to the whole team">Notes</SectionHeading>
+              <SectionHeading hint="texto livre, visível para toda a equipe">Observações</SectionHeading>
               <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-ink">
-                {driver.notes || "No notes on this driver yet."}
+                {driver.notes || "Nenhuma observação sobre este motorista ainda."}
               </p>
             </PaperPanel>
           </TabsContent>
 
           <TabsContent value="activity">
             <PaperPanel className="p-5">
-              <SectionHeading hint={`${activity.length} entries`}>Activity history</SectionHeading>
+              <SectionHeading hint={`${activity.length} registro(s)`}>Histórico de atividades</SectionHeading>
               {activity.length ? (
                 <ul className="mt-3 space-y-3">
                   {activity.map((entry) => (
@@ -385,7 +385,7 @@ export default function DriverDetailPage() {
                 </ul>
               ) : (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Nothing has changed on this driver since they joined the roster.
+                  Nada mudou neste motorista desde que entrou na equipe.
                 </p>
               )}
             </PaperPanel>
@@ -406,4 +406,3 @@ export default function DriverDetailPage() {
     </AppShell>
   );
 }
-

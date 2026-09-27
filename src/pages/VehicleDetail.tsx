@@ -2,6 +2,8 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { AppShell } from "@/components/app-shell";
 import { VehicleFormDialog } from "@/components/vehicle-form";
+import { MaintenanceFormDialog } from "@/components/maintenance-form";
+import { VehicleDocumentFormDialog } from "@/components/vehicle-document-form";
 import {
   EmptyNote,
   KpiCard,
@@ -13,7 +15,6 @@ import {
   PaperPanel,
   SectionHeading,
   Stamp,
-  StickyNote,
 } from "@/components/notebook";
 import {
   AlertDialog,
@@ -27,12 +28,22 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { canEditFleet, canManageCompany, useWorkspace } from "@/hooks/use-workspace";
 import { errorMessage } from "@/lib/errors";
 import {
   ACTIVITY_ACTION_LABELS,
+  DOCUMENT_STATUS_LABELS,
+  DOCUMENT_TYPE_LABELS,
   FUEL_TYPE_LABELS,
+  MAINTENANCE_TYPE_LABELS,
   OWNERSHIP_LABELS,
   TRANSMISSION_LABELS,
   VEHICLE_STATUS_META,
@@ -47,10 +58,33 @@ import {
   timeAgo,
 } from "@/lib/format";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Pencil, Trash2, Truck } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  MapPin,
+  Pencil,
+  Plus,
+  Trash2,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+
+const TAB_BY_HASH: Record<string, string> = {
+  manutencao: "maintenance",
+  documentos: "documents",
+  conformidade: "compliance",
+  ativacao: "assignment",
+  atividade: "activity",
+};
+
+function documentStatusTone(status: string) {
+  if (status === "pago") return "ok" as const;
+  if (status === "atrasado") return "bad" as const;
+  return "warn" as const;
+}
 
 export default function VehicleDetailPage() {
   const { vehicleId } = useParams<{ vehicleId: string }>();
@@ -61,12 +95,31 @@ export default function VehicleDetailPage() {
     vehicleId ? { vehicleId: vehicleId as Id<"vehicles"> } : "skip",
   );
   const deleteVehicle = useMutation(api.fleet.deleteVehicle);
+  const deleteMaintenance = useMutation(api.maintenance.deleteMaintenance);
+  const updateDocumentStatus = useMutation(api.maintenance.updateVehicleDocumentStatus);
+  const deleteDocument = useMutation(api.maintenance.deleteVehicleDocument);
+
   const [editOpen, setEditOpen] = useState(false);
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
+  const [documentOpen, setDocumentOpen] = useState(false);
+  const [tab, setTab] = useState(() => {
+    const hash = window.location.hash.replace("#", "");
+    return TAB_BY_HASH[hash] ?? "overview";
+  });
+
+  const maintenanceList = useQuery(
+    api.maintenance.listMaintenance,
+    vehicleId ? { vehicleId: vehicleId as Id<"vehicles"> } : "skip",
+  );
+  const documents = useQuery(
+    api.maintenance.listVehicleDocuments,
+    vehicleId ? { vehicleId: vehicleId as Id<"vehicles"> } : "skip",
+  );
 
   if (data === undefined) {
     return (
       <AppShell>
-        <LoadingNote label="Pulling the unit file…" />
+        <LoadingNote label="Abrindo o prontuário da unidade…" />
       </AppShell>
     );
   }
@@ -76,11 +129,11 @@ export default function VehicleDetailPage() {
       <AppShell>
         <EmptyNote
           icon={Truck}
-          title="That unit is not in your register"
-          description="The record may have been removed, or the link belongs to another company."
+          title="Essa unidade não está no seu cadastro"
+          description="O registro pode ter sido removido, ou o link pertence a outra empresa."
           action={
             <Button asChild>
-              <Link to="/vehicles">Back to the register</Link>
+              <Link to="/vehicles">Voltar ao cadastro</Link>
             </Button>
           }
         />
@@ -95,12 +148,44 @@ export default function VehicleDetailPage() {
   const service = expiryInfo(vehicle.nextServiceDate, 21);
   const insurance = expiryInfo(vehicle.insuranceExpiry);
   const registration = expiryInfo(vehicle.registrationExpiry);
+  const pendingDocuments = (documents ?? []).filter((doc) => doc.status !== "pago");
+  const maintenanceCost = (maintenanceList ?? []).reduce((sum, row) => sum + (row.cost ?? 0), 0);
 
   async function remove() {
     try {
       await deleteVehicle({ vehicleId: vehicle.id });
-      toast.success(`Unit ${vehicle.unitNumber} removed from the register`);
+      toast.success(`Unidade ${vehicle.unitNumber} removida do cadastro`);
       navigate("/vehicles");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+
+  async function removeMaintenance(recordId: string) {
+    try {
+      await deleteMaintenance({ recordId: recordId as Id<"maintenanceRecords"> });
+      toast.success("Registro de manutenção removido");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+
+  async function changeDocumentStatus(docId: string, status: string) {
+    try {
+      await updateDocumentStatus({
+        docId: docId as Id<"vehicleDocuments">,
+        status: status as never,
+      });
+      toast.success("Situação do documento atualizada");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }
+
+  async function removeDocument(docId: string) {
+    try {
+      await deleteDocument({ docId: docId as Id<"vehicleDocuments"> });
+      toast.success("Documento removido");
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -111,40 +196,40 @@ export default function VehicleDetailPage() {
       <div className="flex flex-col gap-6">
         <Button variant="ghost" size="sm" className="w-fit gap-1.5" asChild>
           <Link to="/vehicles">
-            <ArrowLeft className="size-4" aria-hidden="true" /> Fleet register
+            <ArrowLeft className="size-4" aria-hidden="true" /> Cadastro de veículos
           </Link>
         </Button>
 
         <PaperPanel className="p-5">
           <PageHeader
-            eyebrow={`${labelFrom(VEHICLE_TYPE_LABELS, vehicle.vehicleType)} file`}
-            title={`Unit ${vehicle.unitNumber}`}
+            eyebrow={`${labelFrom(VEHICLE_TYPE_LABELS, vehicle.vehicleType)} · prontuário`}
+            title={`Unidade ${vehicle.unitNumber}`}
             description={`${vehicle.year ? `${vehicle.year} ` : ""}${vehicle.make} ${vehicle.model}${
-              vehicle.plate ? ` · plate ${vehicle.plate}` : ""
+              vehicle.plate ? ` · placa ${vehicle.plate}` : ""
             }`}
             actions={
               <>
                 <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)} disabled={!canEdit}>
-                  <Pencil className="size-4" aria-hidden="true" /> Edit record
+                  <Pencil className="size-4" aria-hidden="true" /> Editar registro
                 </Button>
                 {canDelete ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="gap-2 text-stamp-bad">
-                        <Trash2 className="size-4" aria-hidden="true" /> Remove
+                        <Trash2 className="size-4" aria-hidden="true" /> Remover
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="paper">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Remove unit {vehicle.unitNumber}?</AlertDialogTitle>
+                        <AlertDialogTitle>Remover a unidade {vehicle.unitNumber}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          The record leaves the register and the driver is released. This cannot be
-                          undone.
+                          O registro sai do cadastro e o motorista é liberado. Esta ação não pode ser
+                          desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Keep the unit</AlertDialogCancel>
-                        <AlertDialogAction onClick={remove}>Remove unit</AlertDialogAction>
+                        <AlertDialogCancel>Manter a unidade</AlertDialogCancel>
+                        <AlertDialogAction onClick={remove}>Remover unidade</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -161,149 +246,146 @@ export default function VehicleDetailPage() {
               {labelFrom(OWNERSHIP_LABELS, vehicle.ownershipType)}
             </Stamp>
             {vehicle.vin ? (
-              <span className="font-mono text-xs text-muted-foreground">VIN {vehicle.vin}</span>
+              <span className="font-mono text-xs text-muted-foreground">Chassi {vehicle.vin}</span>
             ) : null}
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
-              label="Odometer"
+              label="Hodômetro"
               value={formatDistance(vehicle.odometer, distanceUnit)}
               hint={
                 vehicle.odometerUpdatedAt
-                  ? `Read on ${formatDate(vehicle.odometerUpdatedAt)}`
-                  : "No reading recorded yet"
+                  ? `Lido em ${formatDate(vehicle.odometerUpdatedAt)}`
+                  : "Nenhuma leitura registrada ainda"
               }
             />
             <KpiCard
-              label="Assigned driver"
+              label="Motorista vinculado"
               value={driver ? driver.name.split(" ")[0] : "—"}
-              hint={
-                driver ? `Licence ${driver.licenseNumber}` : "Nobody is assigned to this unit"
-              }
+              hint={driver ? `CNH ${driver.licenseNumber}` : "Ninguém está vinculado a esta unidade"}
               tone={driver ? "ok" : "info"}
             />
             <KpiCard
-              label="Next service"
+              label="Próxima revisão"
               value={vehicle.nextServiceDate ? formatDate(vehicle.nextServiceDate) : "—"}
               hint={
                 vehicle.nextServiceOdometer
-                  ? `Or at ${formatDistance(vehicle.nextServiceOdometer, distanceUnit)}`
+                  ? `Ou em ${formatDistance(vehicle.nextServiceOdometer, distanceUnit)}`
                   : service.label
               }
               tone={service.tone}
             />
             <KpiCard
-              label="Documents flagged"
-              value={
-                [insurance, registration].filter((item) => item.tone !== "ok").length === 0
-                  ? "Clear"
-                  : `${[insurance, registration].filter((item) => item.tone !== "ok").length}`
+              label="Documentos pendentes"
+              value={documents === undefined ? "…" : `${pendingDocuments.length}`}
+              hint={
+                pendingDocuments.some((doc) => doc.status === "atrasado")
+                  ? "Há impostos/documentos atrasados"
+                  : "Impostos, taxas e renovações"
               }
-              hint="Insurance and registration outlook"
-              tone={
-                [insurance, registration].some((item) => item.tone === "bad")
-                  ? "bad"
-                  : [insurance, registration].some((item) => item.tone === "warn")
-                    ? "warn"
-                    : "ok"
-              }
+              tone={pendingDocuments.some((doc) => doc.status === "atrasado") ? "bad" : pendingDocuments.length ? "warn" : "ok"}
             />
           </div>
         </PaperPanel>
 
-        <Tabs defaultValue="overview" className="gap-4">
+        <Tabs value={tab} onValueChange={setTab} className="gap-4">
           <TabsList className="paper h-auto flex-wrap justify-start gap-1 rounded-lg border border-border p-1">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="compliance">Compliance</TabsTrigger>
-            <TabsTrigger value="assignment">Assignment</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="overview">Visão geral</TabsTrigger>
+            <TabsTrigger value="compliance">Conformidade</TabsTrigger>
+            <TabsTrigger value="maintenance" className="gap-1.5">
+              <Wrench className="size-3.5" aria-hidden="true" /> Manutenção
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-1.5">
+              <FileText className="size-3.5" aria-hidden="true" /> Documentos
+            </TabsTrigger>
+            <TabsTrigger value="assignment">Vinculação</TabsTrigger>
+            <TabsTrigger value="activity">Atividade</TabsTrigger>
+            <TabsTrigger value="notes">Observações</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="grid gap-5 lg:grid-cols-2">
             <PaperPanel className="p-5">
-              <SectionHeading hint="identification">Vehicle</SectionHeading>
+              <SectionHeading hint="identificação">Veículo</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Unit number" mono>
+                <LedgerRow label="Número da unidade" mono>
                   {vehicle.unitNumber}
                 </LedgerRow>
-                <LedgerRow label="Type">{labelFrom(VEHICLE_TYPE_LABELS, vehicle.vehicleType)}</LedgerRow>
-                <LedgerRow label="Make and model">
+                <LedgerRow label="Tipo">{labelFrom(VEHICLE_TYPE_LABELS, vehicle.vehicleType)}</LedgerRow>
+                <LedgerRow label="Marca e modelo">
                   {vehicle.year ? `${vehicle.year} ` : ""}
                   {vehicle.make} {vehicle.model}
                 </LedgerRow>
-                <LedgerRow label="VIN" mono>
+                <LedgerRow label="Chassi (VIN)" mono>
                   {vehicle.vin}
                 </LedgerRow>
-                <LedgerRow label="License plate" mono>
+                <LedgerRow label="Placa" mono>
                   {vehicle.plate}
                 </LedgerRow>
-                <LedgerRow label="Depot / yard">{vehicle.depot}</LedgerRow>
+                <LedgerRow label="Base / pátio">{vehicle.depot}</LedgerRow>
               </LedgerList>
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="how it runs">Specification</SectionHeading>
+              <SectionHeading hint="como ele roda">Especificação</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Fuel">{labelFrom(FUEL_TYPE_LABELS, vehicle.fuelType)}</LedgerRow>
-                <LedgerRow label="Transmission">
+                <LedgerRow label="Combustível">{labelFrom(FUEL_TYPE_LABELS, vehicle.fuelType)}</LedgerRow>
+                <LedgerRow label="Transmissão">
                   {vehicle.transmission
                     ? labelFrom(TRANSMISSION_LABELS, vehicle.transmission)
                     : null}
                 </LedgerRow>
-                <LedgerRow label="Odometer" mono>
+                <LedgerRow label="Hodômetro" mono>
                   {formatNumber(vehicle.odometer)} {distanceUnit}
                 </LedgerRow>
-                <LedgerRow label="Ownership">
+                <LedgerRow label="Propriedade">
                   {labelFrom(OWNERSHIP_LABELS, vehicle.ownershipType)}
                 </LedgerRow>
-                <LedgerRow label="Acquired">{formatDate(vehicle.acquisitionDate)}</LedgerRow>
-                <LedgerRow label="Lease ends">{formatDate(vehicle.leaseEndDate)}</LedgerRow>
+                <LedgerRow label="Adquirido em">{formatDate(vehicle.acquisitionDate)}</LedgerRow>
+                <LedgerRow label="Fim do contrato">{formatDate(vehicle.leaseEndDate)}</LedgerRow>
               </LedgerList>
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="cost basis">Value</SectionHeading>
+              <SectionHeading hint="base de custo">Valor</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Acquisition cost" mono>
+                <LedgerRow label="Custo de aquisição" mono>
                   {formatCurrency(vehicle.acquisitionCost, currency)}
                 </LedgerRow>
-                <LedgerRow label="Current value" mono>
+                <LedgerRow label="Valor atual" mono>
                   {formatCurrency(vehicle.currentValue, currency)}
                 </LedgerRow>
-                <LedgerRow label="Change" mono>
+                <LedgerRow label="Variação" mono>
                   {vehicle.acquisitionCost !== null && vehicle.currentValue !== null
                     ? formatCurrency(vehicle.currentValue - vehicle.acquisitionCost, currency)
                     : null}
                 </LedgerRow>
+                <LedgerRow label="Manutenções registradas" mono>
+                  {maintenanceList === undefined
+                    ? "…"
+                    : `${maintenanceList.length} · ${formatCurrency(maintenanceCost, currency)}`}
+                </LedgerRow>
               </LedgerList>
-              <StickyNote className="mt-4" rotate="0.8deg">
-                <p className="text-xs leading-5">
-                  Fuel, tyre and maintenance costs land here in the next release. Today the unit file
-                  already carries the cost basis they will be measured against.
-                </p>
-              </StickyNote>
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="record history">Record</SectionHeading>
+              <SectionHeading hint="histórico do registro">Registro</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Added">{formatDate(vehicle.createdAt)}</LedgerRow>
-                <LedgerRow label="Last updated">{formatDate(vehicle.updatedAt)}</LedgerRow>
-                <LedgerRow label="Company">{org?.name}</LedgerRow>
+                <LedgerRow label="Cadastrado em">{formatDate(vehicle.createdAt)}</LedgerRow>
+                <LedgerRow label="Última atualização">{formatDate(vehicle.updatedAt)}</LedgerRow>
+                <LedgerRow label="Empresa">{org?.name}</LedgerRow>
               </LedgerList>
             </PaperPanel>
           </TabsContent>
 
           <TabsContent value="compliance" className="grid gap-5 lg:grid-cols-2">
             <PaperPanel className="p-5">
-              <SectionHeading hint="insurance">Cover</SectionHeading>
+              <SectionHeading hint="seguro">Cobertura</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Policy number" mono>
+                <LedgerRow label="Apólice" mono>
                   {vehicle.insurancePolicy}
                 </LedgerRow>
-                <LedgerRow label="Expiry">{formatDate(vehicle.insuranceExpiry)}</LedgerRow>
+                <LedgerRow label="Vencimento">{formatDate(vehicle.insuranceExpiry)}</LedgerRow>
               </LedgerList>
               <div className="mt-3">
                 <Stamp tone={insurance.tone}>{insurance.label}</Stamp>
@@ -311,55 +393,243 @@ export default function VehicleDetailPage() {
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="registration and service">Compliance dates</SectionHeading>
+              <SectionHeading hint="licenciamento e revisão">Datas de conformidade</SectionHeading>
               <LedgerList className="mt-3">
-                <LedgerRow label="Registration expires">
+                <LedgerRow label="Licenciamento vence">
                   {formatDate(vehicle.registrationExpiry)}
                 </LedgerRow>
-                <LedgerRow label="Next service date">{formatDate(vehicle.nextServiceDate)}</LedgerRow>
-                <LedgerRow label="Next service odometer" mono>
+                <LedgerRow label="Próxima revisão">{formatDate(vehicle.nextServiceDate)}</LedgerRow>
+                <LedgerRow label="Hodômetro da próxima revisão" mono>
                   {vehicle.nextServiceOdometer
                     ? `${formatNumber(vehicle.nextServiceOdometer)} ${distanceUnit}`
                     : null}
                 </LedgerRow>
               </LedgerList>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Stamp tone={registration.tone}>Registration: {registration.label}</Stamp>
-                <Stamp tone={service.tone}>Service: {service.label}</Stamp>
+                <Stamp tone={registration.tone}>Licenciamento: {registration.label}</Stamp>
+                <Stamp tone={service.tone}>Revisão: {service.label}</Stamp>
               </div>
+            </PaperPanel>
+          </TabsContent>
+
+          <TabsContent value="maintenance">
+            <PaperPanel className="p-5">
+              <SectionHeading
+                icon={Wrench}
+                hint={
+                  maintenanceList === undefined
+                    ? "carregando…"
+                    : `${maintenanceList.length} registro(s) · ${formatCurrency(maintenanceCost, currency)}`
+                }
+              >
+                Registros de manutenção
+              </SectionHeading>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button
+                  className="gap-2"
+                  onClick={() => setMaintenanceOpen(true)}
+                  disabled={!canEdit}
+                  title={canEdit ? undefined : "Seu papel é somente leitura"}
+                >
+                  <Plus className="size-4" aria-hidden="true" /> Registrar manutenção
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Serviços realizados, peças trocadas, valores, quilometragem e local.
+                </p>
+              </div>
+
+              {maintenanceList === undefined ? (
+                <p className="mt-4 text-sm text-muted-foreground">Carregando registros…</p>
+              ) : maintenanceList.length === 0 ? (
+                <div className="mt-4">
+                  <EmptyNote
+                    icon={Wrench}
+                    title="Nenhuma manutenção registrada"
+                    description="Registre o primeiro serviço para acompanhar preventivas, custos e a próxima revisão desta unidade."
+                  />
+                </div>
+              ) : (
+                <ul className="mt-4 divide-y divide-dashed divide-border/60">
+                  {maintenanceList.map((record) => (
+                    <li key={record.id} className="flex flex-col gap-2 py-3.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Stamp tone="info" rotate={false}>
+                          {labelFrom(MAINTENANCE_TYPE_LABELS, record.maintenanceType)}
+                        </Stamp>
+                        <span className="text-sm font-medium text-ink">{record.description}</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatDate(record.serviceDate)}
+                        </span>
+                        {canDelete ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-auto text-stamp-bad"
+                            aria-label="Remover registro"
+                            onClick={() => removeMaintenance(record.id)}
+                          >
+                            <Trash2 className="size-4" aria-hidden="true" />
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                        <span>
+                          <span className="font-medium text-ink">Quilometragem:</span>{" "}
+                          {formatNumber(record.odometerAtService)} {distanceUnit}
+                        </span>
+                        <span>
+                          <span className="font-medium text-ink">Valor:</span>{" "}
+                          {formatCurrency(record.cost, currency)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="size-3" aria-hidden="true" />
+                          {record.location || record.vendor || "Local não informado"}
+                        </span>
+                        <span className="sm:col-span-2 lg:col-span-3">
+                          <span className="font-medium text-ink">Peças trocadas:</span>{" "}
+                          {record.partsReplaced || "—"}
+                        </span>
+                        {record.nextServiceDate || record.nextServiceOdometer ? (
+                          <span className="sm:col-span-2 lg:col-span-3">
+                            <span className="font-medium text-ink">Próxima revisão:</span>{" "}
+                            {record.nextServiceDate ? formatDate(record.nextServiceDate) : "—"}
+                            {record.nextServiceOdometer
+                              ? ` · ${formatNumber(record.nextServiceOdometer)} ${distanceUnit}`
+                              : ""}
+                          </span>
+                        ) : null}
+                        {record.notes ? (
+                          <span className="sm:col-span-2 lg:col-span-3">{record.notes}</span>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PaperPanel>
+          </TabsContent>
+
+          <TabsContent value="documents">
+            <PaperPanel className="p-5">
+              <SectionHeading
+                icon={FileText}
+                hint={
+                  documents === undefined
+                    ? "carregando…"
+                    : `${pendingDocuments.length} pendente(s) de ${documents.length}`
+                }
+              >
+                Documentos, impostos e renovações
+              </SectionHeading>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button
+                  className="gap-2"
+                  onClick={() => setDocumentOpen(true)}
+                  disabled={!canEdit}
+                  title={canEdit ? undefined : "Seu papel é somente leitura"}
+                >
+                  <Plus className="size-4" aria-hidden="true" /> Novo documento
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  IPVA, licenciamento, seguro, DPVAT, inspeção, TAF, ANTT e outros.
+                </p>
+              </div>
+
+              {documents === undefined ? (
+                <p className="mt-4 text-sm text-muted-foreground">Carregando documentos…</p>
+              ) : documents.length === 0 ? (
+                <div className="mt-4">
+                  <EmptyNote
+                    icon={FileText}
+                    title="Nenhum documento cadastrado"
+                    description="Cadastre os impostos e renovações desta unidade para receber alertas de vencimento no painel e no sino."
+                  />
+                </div>
+              ) : (
+                <ul className="mt-4 divide-y divide-dashed divide-border/60">
+                  {documents.map((doc) => (
+                    <li key={doc.id} className="flex flex-wrap items-center gap-3 py-3">
+                      <Stamp tone="neutral" rotate={false}>
+                        {labelFrom(DOCUMENT_TYPE_LABELS, doc.documentType)}
+                      </Stamp>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-ink">{doc.title}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Vencimento: {formatDate(doc.dueDate)} · Valor:{" "}
+                          {formatCurrency(doc.amount, currency)}
+                          {doc.paidAt ? ` · Pago em ${formatDate(doc.paidAt)}` : ""}
+                        </span>
+                      </span>
+                      <Stamp tone={documentStatusTone(doc.status)} rotate={false}>
+                        {labelFrom(DOCUMENT_STATUS_LABELS, doc.status)}
+                      </Stamp>
+                      {canEdit ? (
+                        <div className="flex items-center gap-1">
+                          <Select
+                            value={doc.status}
+                            onValueChange={(value) => changeDocumentStatus(doc.id, value)}
+                          >
+                            <SelectTrigger className="h-8 w-32 text-xs" aria-label="Alterar situação">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="paper">
+                              {Object.entries(DOCUMENT_STATUS_LABELS).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-stamp-bad"
+                            aria-label="Remover documento"
+                            onClick={() => removeDocument(doc.id)}
+                          >
+                            <Trash2 className="size-4" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </PaperPanel>
           </TabsContent>
 
           <TabsContent value="assignment" className="grid gap-5 lg:grid-cols-2">
             <PaperPanel className="p-5">
-              <SectionHeading hint="who runs this unit">Current driver</SectionHeading>
+              <SectionHeading hint="quem opera esta unidade">Motorista atual</SectionHeading>
               {driver ? (
                 <>
                   <LedgerList className="mt-3">
-                    <LedgerRow label="Driver">
+                    <LedgerRow label="Motorista">
                       <Link to={`/drivers/${driver.id}`} className="hover:text-pen hover:underline">
                         {driver.name}
                       </Link>
                     </LedgerRow>
-                    <LedgerRow label="Phone">{driver.phone}</LedgerRow>
-                    <LedgerRow label="Email">{driver.email}</LedgerRow>
-                    <LedgerRow label="Licence" mono>
+                    <LedgerRow label="Telefone">{driver.phone}</LedgerRow>
+                    <LedgerRow label="E-mail">{driver.email}</LedgerRow>
+                    <LedgerRow label="CNH" mono>
                       {driver.licenseNumber}
                     </LedgerRow>
-                    <LedgerRow label="Licence expiry">{formatDate(driver.licenseExpiry)}</LedgerRow>
+                    <LedgerRow label="Validade da CNH">{formatDate(driver.licenseExpiry)}</LedgerRow>
                   </LedgerList>
                   <Button variant="outline" size="sm" className="mt-4" asChild>
-                    <Link to={`/drivers/${driver.id}`}>Open the driver file</Link>
+                    <Link to={`/drivers/${driver.id}`}>Abrir prontuário do motorista</Link>
                   </Button>
                 </>
               ) : (
                 <div className="mt-3">
                   <EmptyNote
-                    title="No driver assigned"
-                    description="Assign a driver from this unit's edit form, or from the driver's own file. Either way both records stay in step."
+                    title="Nenhum motorista vinculado"
+                    description="Vincule um motorista pelo formulário desta unidade, ou pelo prontuário do próprio motorista. Os dois registros ficam sincronizados."
                     action={
                       <Button className="gap-2" onClick={() => setEditOpen(true)} disabled={!canEdit}>
-                        <Pencil className="size-4" aria-hidden="true" /> Assign a driver
+                        <Pencil className="size-4" aria-hidden="true" /> Vincular motorista
                       </Button>
                     }
                   />
@@ -368,7 +638,7 @@ export default function VehicleDetailPage() {
             </PaperPanel>
 
             <PaperPanel className="p-5">
-              <SectionHeading hint="everyone on the roster">Available drivers</SectionHeading>
+              <SectionHeading hint="todos da equipe">Motoristas disponíveis</SectionHeading>
               <ul className="mt-3 space-y-2">
                 {driverOptions.length ? (
                   driverOptions.map((option) => (
@@ -380,15 +650,15 @@ export default function VehicleDetailPage() {
                         {option.name}
                       </Link>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {option.assignedUnit ? `unit ${option.assignedUnit}` : "unassigned"}
+                        {option.assignedUnit ? `unidade ${option.assignedUnit}` : "sem unidade"}
                       </span>
                     </li>
                   ))
                 ) : (
                   <li className="text-sm text-muted-foreground">
-                    No drivers on the roster yet.{" "}
+                    Nenhum motorista na equipe ainda.{" "}
                     <Link to="/drivers" className="text-pen underline">
-                      Add a driver
+                      Adicionar motorista
                     </Link>
                     .
                   </li>
@@ -399,16 +669,16 @@ export default function VehicleDetailPage() {
 
           <TabsContent value="notes">
             <PaperPanel className="p-5">
-              <SectionHeading hint="free text, visible to the whole team">Notes</SectionHeading>
+              <SectionHeading hint="texto livre, visível para toda a equipe">Observações</SectionHeading>
               <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-ink">
-                {vehicle.notes || "No notes on this unit yet."}
+                {vehicle.notes || "Nenhuma observação nesta unidade ainda."}
               </p>
             </PaperPanel>
           </TabsContent>
 
           <TabsContent value="activity">
             <PaperPanel className="p-5">
-              <SectionHeading hint={`${activity.length} entries`}>Activity history</SectionHeading>
+              <SectionHeading hint={`${activity.length} registro(s)`}>Histórico de atividades</SectionHeading>
               {activity.length ? (
                 <ul className="mt-3 space-y-3">
                   {activity.map((entry) => (
@@ -429,7 +699,7 @@ export default function VehicleDetailPage() {
                 </ul>
               ) : (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Nothing has changed on this unit since it joined the register.
+                  Nada mudou nesta unidade desde que entrou no cadastro.
                 </p>
               )}
             </PaperPanel>
@@ -444,6 +714,23 @@ export default function VehicleDetailPage() {
         vehicle={vehicle}
         driverOptions={driverOptions}
       />
+      {vehicleId ? (
+        <>
+          <MaintenanceFormDialog
+            open={maintenanceOpen}
+            onOpenChange={setMaintenanceOpen}
+            vehicleId={vehicleId}
+            vehicleUnit={vehicle.unitNumber}
+            currentOdometer={vehicle.odometer}
+          />
+          <VehicleDocumentFormDialog
+            open={documentOpen}
+            onOpenChange={setDocumentOpen}
+            vehicleId={vehicleId}
+            vehicleUnit={vehicle.unitNumber}
+          />
+        </>
+      ) : null}
     </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import { api } from "@/convex/_generated/api";
 import { AppShell } from "@/components/app-shell";
+import { LogbookPanel } from "@/components/logbook-panel";
 import {
   EmptyNote,
   LoadingNote,
@@ -7,7 +8,6 @@ import {
   PaperPanel,
   SectionHeading,
   Stamp,
-  StickyNote,
 } from "@/components/notebook";
 import {
   AlertDialog,
@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DISTANCE_UNITS, VOLUME_UNITS } from "@/convex/constants";
 import {
   canManageCompany,
@@ -52,6 +53,7 @@ import {
 } from "@/lib/format";
 import { useMutation } from "convex/react";
 import {
+  BookText,
   Building2,
   Loader2,
   Settings2,
@@ -61,20 +63,23 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 const ROLE_OPTIONS = Object.entries(ORG_ROLE_LABELS).filter(([value]) => value !== "owner");
 const TIME_ZONES = [
+  "America/Sao_Paulo",
+  "America/Manaus",
+  "America/Belem",
+  "America/Fortaleza",
+  "America/Recife",
+  "America/Cuiaba",
+  "America/Rio_Branco",
   "America/Los_Angeles",
-  "America/Denver",
-  "America/Chicago",
   "America/New_York",
-  "America/Toronto",
   "Europe/London",
-  "Europe/Berlin",
-  "Europe/Paris",
+  "Europe/Lisbon",
   "Europe/Madrid",
-  "Australia/Sydney",
   "UTC",
 ];
 
@@ -110,6 +115,8 @@ function toValues(org: {
   };
 }
 
+const TAB_VALUES = ["empresa", "equipe", "logbook", "dados"] as const;
+
 export default function SettingsPage() {
   const { workspace, org, role, members } = useWorkspace();
   const updateOrg = useMutation(api.fleet.updateOrganization);
@@ -117,6 +124,10 @@ export default function SettingsPage() {
   const updateRole = useMutation(api.fleet.updateMemberRole);
   const removeMemberM = useMutation(api.fleet.removeMember);
   const clearData = useMutation(api.fleet.clearFleetData);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab") ?? "empresa";
+  const tab = (TAB_VALUES as readonly string[]).includes(requestedTab) ? requestedTab : "empresa";
 
   const [values, setValues] = useState(() => (org ? toValues(org) : null));
   const [savingOrg, setSavingOrg] = useState(false);
@@ -127,7 +138,7 @@ export default function SettingsPage() {
 
   const canManage = canManageCompany(role);
 
-  // Keep the form in step if the workspace loads after mount.
+  // Mantém o formulário sincronizado se o espaço de trabalho carregar depois.
   if (org && values === null) {
     setValues(toValues(org));
   }
@@ -136,15 +147,15 @@ export default function SettingsPage() {
     return (
       <AppShell>
         {workspace === undefined ? (
-          <LoadingNote label="Opening company settings…" />
+          <LoadingNote label="Abrindo as configurações da empresa…" />
         ) : (
           <EmptyNote
             icon={Building2}
-            title="No company yet"
-            description="Create your company profile first — then team management and data controls appear here."
+            title="Nenhuma empresa ainda"
+            description="Crie o perfil da empresa primeiro — depois a gestão de equipe e os controles de dados aparecem aqui."
             action={
               <Button asChild>
-                <a href="/setup">Start setup</a>
+                <a href="/setup">Começar configuração</a>
               </Button>
             }
           />
@@ -177,7 +188,7 @@ export default function SettingsPage() {
         volumeUnit: values!.volumeUnit as "gal" | "l",
         timeZone: values!.timeZone,
       });
-      toast.success("Company settings saved");
+      toast.success("Configurações da empresa salvas");
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -190,7 +201,7 @@ export default function SettingsPage() {
     setInviting(true);
     try {
       await addMember({ email: inviteEmail.trim(), role: inviteRole as never });
-      toast.success(`Invitation recorded for ${inviteEmail.trim()}`);
+      toast.success(`Convite registrado para ${inviteEmail.trim()}`);
       setInviteEmail("");
     } catch (error) {
       toast.error(errorMessage(error));
@@ -205,7 +216,7 @@ export default function SettingsPage() {
         membershipId: membership.membershipId as never,
         role: nextRole as never,
       });
-      toast.success(`${membership.name} is now ${labelFrom(ORG_ROLE_LABELS, nextRole)}`);
+      toast.success(`${membership.name} agora é ${labelFrom(ORG_ROLE_LABELS, nextRole)}`);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -214,7 +225,7 @@ export default function SettingsPage() {
   async function removeTeamMember(membership: WorkspaceMember) {
     try {
       await removeMemberM({ membershipId: membership.membershipId as never });
-      toast.success(`${membership.name} removed from the workspace`);
+      toast.success(`${membership.name} removido do espaço de trabalho`);
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -225,7 +236,7 @@ export default function SettingsPage() {
     try {
       const result = await clearData({});
       toast.success(
-        `Cleared ${result.vehicles} vehicles and ${result.drivers} drivers`,
+        `${result.vehicles} veículos e ${result.drivers} motoristas removidos`,
       );
     } catch (error) {
       toast.error(errorMessage(error));
@@ -238,384 +249,430 @@ export default function SettingsPage() {
     <AppShell>
       <div className="flex flex-col gap-6">
         <PageHeader
-          eyebrow="Company administration"
-          title="Settings"
-          description="Company identity, measurement units, your team and their roles, and the data controls for this workspace."
+          eyebrow="Administração da empresa"
+          title="Configurações"
+          description="Identidade da empresa, unidades de medida, equipe e permissões, livro de registros e os controles de dados deste espaço de trabalho."
         />
 
-        <form onSubmit={saveOrg} className="contents">
-          <PaperPanel className="p-5">
-            <SectionHeading icon={Building2} hint="visible across the workspace">
-              Company profile
-            </SectionHeading>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="org-name">Company name</Label>
-                <Input
-                  id="org-name"
-                  value={values.name}
-                  onChange={set("name")}
-                  required
-                  className="paper mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="org-legal">Legal name</Label>
-                <Input
-                  id="org-legal"
-                  value={values.legalName}
-                  onChange={set("legalName")}
-                  placeholder="Registered entity name"
-                  className="paper mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="org-tax">Tax ID / EIN</Label>
-                <Input
-                  id="org-tax"
-                  value={values.taxId}
-                  onChange={set("taxId")}
-                  className="paper mt-1.5 font-mono"
-                />
-              </div>
-              <div>
-                <Label htmlFor="org-email">Contact email</Label>
-                <Input
-                  id="org-email"
-                  type="email"
-                  value={values.contactEmail}
-                  onChange={set("contactEmail")}
-                  className="paper mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="org-phone">Phone</Label>
-                <Input
-                  id="org-phone"
-                  value={values.phone}
-                  onChange={set("phone")}
-                  className="paper mt-1.5 font-mono"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="org-address">Address</Label>
-                <Input
-                  id="org-address"
-                  value={values.addressLine}
-                  onChange={set("addressLine")}
-                  className="paper mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="org-city">City</Label>
-                <Input id="org-city" value={values.city} onChange={set("city")} className="paper mt-1.5" />
-              </div>
-              <div>
-                <Label htmlFor="org-region">State / region</Label>
-                <Input
-                  id="org-region"
-                  value={values.region}
-                  onChange={set("region")}
-                  className="paper mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="org-country">Country</Label>
-                <Input
-                  id="org-country"
-                  value={values.country}
-                  onChange={set("country")}
-                  className="paper mt-1.5"
-                />
-              </div>
-            </div>
-          </PaperPanel>
+        <Tabs
+          value={tab}
+          onValueChange={(next) => setSearchParams(next === "empresa" ? {} : { tab: next }, { replace: true })}
+          className="gap-5"
+        >
+          <TabsList className="paper h-auto flex-wrap justify-start gap-1 rounded-lg border border-border p-1">
+            <TabsTrigger value="empresa" className="gap-1.5">
+              <Building2 className="size-3.5" aria-hidden="true" /> Empresa
+            </TabsTrigger>
+            <TabsTrigger value="equipe" className="gap-1.5">
+              <Users className="size-3.5" aria-hidden="true" /> Equipe e acessos
+            </TabsTrigger>
+            <TabsTrigger value="logbook" className="gap-1.5">
+              <BookText className="size-3.5" aria-hidden="true" /> Livro de registros
+            </TabsTrigger>
+            <TabsTrigger value="dados" className="gap-1.5">
+              <ShieldCheck className="size-3.5" aria-hidden="true" /> Dados
+            </TabsTrigger>
+          </TabsList>
 
-          <PaperPanel className="mt-5 p-5">
-            <SectionHeading icon={Settings2} hint="used for every display and conversion">
-              Units &amp; locale
-            </SectionHeading>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <Label htmlFor="org-currency">Currency</Label>
-                <Input
-                  id="org-currency"
-                  value={values.currency}
-                  onChange={set("currency")}
-                  maxLength={3}
-                  className="paper mt-1.5 font-mono uppercase"
-                />
-              </div>
-              <div>
-                <Label>Distance unit</Label>
-                <Select
-                  value={values.distanceUnit}
-                  onValueChange={(v) =>
-                    setValues((current) => (current ? { ...current, distanceUnit: v } : current))
-                  }
-                >
-                  <SelectTrigger className="paper mt-1.5 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="paper">
-                    {DISTANCE_UNITS.map((unit) => (
-                      <SelectItem key={unit} value={unit}>
-                        {unit === "mi" ? "Miles" : "Kilometres"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Volume unit</Label>
-                <Select
-                  value={values.volumeUnit}
-                  onValueChange={(v) =>
-                    setValues((current) => (current ? { ...current, volumeUnit: v } : current))
-                  }
-                >
-                  <SelectTrigger className="paper mt-1.5 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="paper">
-                    {VOLUME_UNITS.map((unit) => (
-                      <SelectItem key={unit} value={unit}>
-                        {unit === "gal" ? "Gallons" : "Litres"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Time zone</Label>
-                <Select
-                  value={values.timeZone}
-                  onValueChange={(v) =>
-                    setValues((current) => (current ? { ...current, timeZone: v } : current))
-                  }
-                >
-                  <SelectTrigger className="paper mt-1.5 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="paper max-h-72">
-                    {TIME_ZONES.map((zone) => (
-                      <SelectItem key={zone} value={zone}>
-                        {zone.replace(/_/g, " ")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {canManage ? (
-              <div className="mt-5 flex items-center gap-3 border-t border-dashed border-border/70 pt-4">
-                <Button type="submit" disabled={savingOrg} className="gap-2">
-                  {savingOrg ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  Save company settings
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Only the owner and administrators can change these.
-                </p>
-              </div>
-            ) : (
-              <p className="mt-4 border-t border-dashed border-border/70 pt-4 text-xs text-muted-foreground">
-                Your role ({labelFrom(ORG_ROLE_LABELS, role ?? "viewer")}) is read-only for company
-                settings.
-              </p>
-            )}
-          </PaperPanel>
-        </form>
+          <TabsContent value="empresa">
+            <form onSubmit={saveOrg} className="contents">
+              <PaperPanel className="p-5">
+                <SectionHeading icon={Building2} hint="visível em todo o espaço de trabalho">
+                  Perfil da empresa
+                </SectionHeading>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="org-name">Nome da empresa</Label>
+                    <Input
+                      id="org-name"
+                      value={values.name}
+                      onChange={set("name")}
+                      required
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-legal">Razão social</Label>
+                    <Input
+                      id="org-legal"
+                      value={values.legalName}
+                      onChange={set("legalName")}
+                      placeholder="Nome jurídico registrado"
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-tax">CNPJ / documento fiscal</Label>
+                    <Input
+                      id="org-tax"
+                      value={values.taxId}
+                      onChange={set("taxId")}
+                      className="paper mt-1.5 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-email">E-mail de contato</Label>
+                    <Input
+                      id="org-email"
+                      type="email"
+                      value={values.contactEmail}
+                      onChange={set("contactEmail")}
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-phone">Telefone</Label>
+                    <Input
+                      id="org-phone"
+                      value={values.phone}
+                      onChange={set("phone")}
+                      className="paper mt-1.5 font-mono"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="org-address">Endereço</Label>
+                    <Input
+                      id="org-address"
+                      value={values.addressLine}
+                      onChange={set("addressLine")}
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-city">Cidade</Label>
+                    <Input id="org-city" value={values.city} onChange={set("city")} className="paper mt-1.5" />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-region">Estado / região</Label>
+                    <Input
+                      id="org-region"
+                      value={values.region}
+                      onChange={set("region")}
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="org-country">País</Label>
+                    <Input
+                      id="org-country"
+                      value={values.country}
+                      onChange={set("country")}
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                </div>
+              </PaperPanel>
 
-        <PaperPanel className="p-5">
-          <SectionHeading icon={Users} hint={`${members.length} members`}>
-            Team &amp; roles
-          </SectionHeading>
-          {canManage ? (
-            <form onSubmit={invite} className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="min-w-56 flex-1">
-                <Label htmlFor="invite-email">Add a team member</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="colleague@yourcompany.com"
-                  required
-                  className="paper mt-1.5"
-                />
-              </div>
-              <div className="w-52">
-                <Label>Role</Label>
-                <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger className="paper mt-1.5 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="paper">
-                    {ROLE_OPTIONS.map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" disabled={inviting} className="gap-2">
-                {inviting ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              <PaperPanel className="mt-5 p-5">
+                <SectionHeading icon={Settings2} hint="usados em todas as exibições e conversões">
+                  Unidades &amp; localidade
+                </SectionHeading>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <Label htmlFor="org-currency">Moeda</Label>
+                    <Input
+                      id="org-currency"
+                      value={values.currency}
+                      onChange={set("currency")}
+                      maxLength={3}
+                      className="paper mt-1.5 font-mono uppercase"
+                    />
+                  </div>
+                  <div>
+                    <Label>Unidade de distância</Label>
+                    <Select
+                      value={values.distanceUnit}
+                      onValueChange={(v) =>
+                        setValues((current) => (current ? { ...current, distanceUnit: v } : current))
+                      }
+                    >
+                      <SelectTrigger className="paper mt-1.5 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="paper">
+                        {DISTANCE_UNITS.map((unit) => (
+                          <SelectItem key={unit} value={unit}>
+                            {unit === "mi" ? "Milhas" : "Quilômetros"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Unidade de volume</Label>
+                    <Select
+                      value={values.volumeUnit}
+                      onValueChange={(v) =>
+                        setValues((current) => (current ? { ...current, volumeUnit: v } : current))
+                      }
+                    >
+                      <SelectTrigger className="paper mt-1.5 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="paper">
+                        {VOLUME_UNITS.map((unit) => (
+                          <SelectItem key={unit} value={unit}>
+                            {unit === "gal" ? "Galões" : "Litros"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Fuso horário</Label>
+                    <Select
+                      value={values.timeZone}
+                      onValueChange={(v) =>
+                        setValues((current) => (current ? { ...current, timeZone: v } : current))
+                      }
+                    >
+                      <SelectTrigger className="paper mt-1.5 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="paper max-h-72">
+                        {TIME_ZONES.map((zone) => (
+                          <SelectItem key={zone} value={zone}>
+                            {zone.replace(/_/g, " ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {canManage ? (
+                  <div className="mt-5 flex items-center gap-3 border-t border-dashed border-border/70 pt-4">
+                    <Button type="submit" disabled={savingOrg} className="gap-2">
+                      {savingOrg ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                      Salvar configurações
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Somente proprietário e administradores podem alterar.
+                    </p>
+                  </div>
                 ) : (
-                  <UserPlus className="size-4" aria-hidden="true" />
+                  <p className="mt-4 border-t border-dashed border-border/70 pt-4 text-xs text-muted-foreground">
+                    Seu papel ({labelFrom(ORG_ROLE_LABELS, role ?? "viewer")}) é somente leitura para
+                    configurações da empresa.
+                  </p>
                 )}
-                Add to workspace
-              </Button>
-              <p className="w-full text-xs text-muted-foreground">
-                The person must have signed in to Fleet Command at least once with this email
-                address. Roles decide who can edit registers, manage the team and see finance data.
-              </p>
+              </PaperPanel>
             </form>
-          ) : null}
+          </TabsContent>
 
-          <div className="mt-4 overflow-hidden rounded-lg border border-border/70">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-secondary/40 hover:bg-secondary/40">
-                  <TableHead>Member</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  {canManage ? <TableHead className="w-16" /> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => {
-                  const isSelf = member.userId === workspace?.user.id;
-                  const isOwner = member.role === "owner";
-                  return (
-                    <TableRow key={member.membershipId}>
-                      <TableCell>
-                        <span className="block text-sm font-medium text-ink">
-                          {member.name}
-                          {isSelf ? <span className="ml-2 text-xs text-muted-foreground">(you)</span> : null}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">{member.email}</span>
-                      </TableCell>
-                      <TableCell>
-                        {isOwner || isSelf || !canManage ? (
-                          <Stamp tone={isOwner ? "info" : "neutral"} rotate={false}>
-                            {labelFrom(ORG_ROLE_LABELS, member.role)}
-                          </Stamp>
-                        ) : (
-                          <Select
-                            value={member.role}
-                            onValueChange={(value) => changeRole(member, value)}
-                          >
-                            <SelectTrigger className="h-8 w-44 text-xs" aria-label="Change role">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="paper">
-                              {ROLE_OPTIONS.map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(member.joinedAt)}
-                      </TableCell>
-                      {canManage ? (
-                        <TableCell>
-                          {!isOwner && !isSelf ? (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-stamp-bad"
-                                  aria-label={`Remove ${member.name}`}
-                                >
-                                  <Trash2 className="size-4" aria-hidden="true" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="paper">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Remove {member.name}?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    They lose access to this workspace immediately. Their fleet
-                                    records stay in place.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => removeTeamMember(member)}>
-                                    Remove member
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          ) : null}
-                        </TableCell>
-                      ) : null}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </PaperPanel>
-
-        {canManage ? (
-          <PaperPanel className="p-5">
-            <SectionHeading icon={ShieldCheck} hint="owner and admin only">
-              Data controls
-            </SectionHeading>
-            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="max-w-xl text-sm text-muted-foreground">
-                <p>
-                  Clearing removes every vehicle, driver and log book entry from this workspace.
-                  Company settings and team memberships are kept. Use it to reset the register
-                  before a real deployment or after demoing with sample data.
-                </p>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" className="gap-2 text-stamp-bad" disabled={clearing}>
-                    {clearing ? (
+          <TabsContent value="equipe">
+            <PaperPanel className="p-5">
+              <SectionHeading icon={Users} hint={`${members.length} integrantes`}>
+                Equipe &amp; permissões
+              </SectionHeading>
+              {canManage ? (
+                <form onSubmit={invite} className="mt-4 flex flex-wrap items-end gap-3">
+                  <div className="min-w-56 flex-1">
+                    <Label htmlFor="invite-email">Adicionar integrante</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(event) => setInviteEmail(event.target.value)}
+                      placeholder="colega@suaempresa.com.br"
+                      required
+                      className="paper mt-1.5"
+                    />
+                  </div>
+                  <div className="w-52">
+                    <Label>Papel</Label>
+                    <Select value={inviteRole} onValueChange={setInviteRole}>
+                      <SelectTrigger className="paper mt-1.5 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="paper">
+                        {ROLE_OPTIONS.map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" disabled={inviting} className="gap-2">
+                    {inviting ? (
                       <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                     ) : (
-                      <Trash2 className="size-4" aria-hidden="true" />
+                      <UserPlus className="size-4" aria-hidden="true" />
                     )}
-                    Clear fleet data
+                    Adicionar ao espaço
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="paper">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Clear the entire register?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Every vehicle, driver and log book entry in {org.name} will be deleted. This
-                      cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep my data</AlertDialogCancel>
-                    <AlertDialogAction onClick={clearRegister}>
-                      Yes, clear everything
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </PaperPanel>
-        ) : null}
+                  <p className="w-full text-xs text-muted-foreground">
+                    A pessoa precisa ter entrado no Fleet Command pelo menos uma vez com este e-mail.
+                    Os papéis definem quem edita cadastros, gerencia a equipe e vê dados financeiros.
+                  </p>
+                </form>
+              ) : null}
 
-        <StickyNote rotate="0.6deg">
-          <p className="font-hand text-xl">Tenant isolation</p>
-          <p className="mt-1 text-sm leading-6">
-            Every record in this workspace is bound to {org.name} on the server. Users from other
-            companies cannot query, list or even guess their way into your data — every query and
-            mutation re-checks membership before returning anything.
-          </p>
-        </StickyNote>
+              <div className="mt-4 overflow-hidden rounded-lg border border-border/70">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-secondary/40 hover:bg-secondary/40">
+                      <TableHead>Integrante</TableHead>
+                      <TableHead>Papel</TableHead>
+                      <TableHead>Entrou em</TableHead>
+                      {canManage ? <TableHead className="w-16" /> : null}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members.map((member) => {
+                      const isSelf = member.userId === workspace?.user.id;
+                      const isOwner = member.role === "owner";
+                      return (
+                        <TableRow key={member.membershipId}>
+                          <TableCell>
+                            <span className="block text-sm font-medium text-ink">
+                              {member.name}
+                              {isSelf ? <span className="ml-2 text-xs text-muted-foreground">(você)</span> : null}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">{member.email}</span>
+                          </TableCell>
+                          <TableCell>
+                            {isOwner || isSelf || !canManage ? (
+                              <Stamp tone={isOwner ? "info" : "neutral"} rotate={false}>
+                                {labelFrom(ORG_ROLE_LABELS, member.role)}
+                              </Stamp>
+                            ) : (
+                              <Select
+                                value={member.role}
+                                onValueChange={(value) => changeRole(member, value)}
+                              >
+                                <SelectTrigger className="h-8 w-44 text-xs" aria-label="Alterar papel">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="paper">
+                                  {ROLE_OPTIONS.map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>
+                                      {label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(member.joinedAt)}
+                          </TableCell>
+                          {canManage ? (
+                            <TableCell>
+                              {!isOwner && !isSelf ? (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-stamp-bad"
+                                      aria-label={`Remover ${member.name}`}
+                                    >
+                                      <Trash2 className="size-4" aria-hidden="true" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="paper">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remover {member.name}?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        A pessoa perde o acesso a este espaço de trabalho imediatamente.
+                                        Os registros da frota permanecem intactos.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => removeTeamMember(member)}>
+                                        Remover integrante
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              ) : null}
+                            </TableCell>
+                          ) : null}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </PaperPanel>
+          </TabsContent>
+
+          <TabsContent value="logbook">
+            <div className="flex flex-col gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-ink">Livro de registros</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                  Todo cadastro, edição, vinculação, mudança de status e atualização de equipe fica
+                  escrito aqui — quem fez, o que mudou e quando.
+                </p>
+              </div>
+              <LogbookPanel />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="dados">
+            {canManage ? (
+              <PaperPanel className="p-5">
+                <SectionHeading icon={ShieldCheck} hint="somente proprietário e administrador">
+                  Controles de dados
+                </SectionHeading>
+                <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="max-w-xl text-sm text-muted-foreground">
+                    <p>
+                      Limpar remove todos os veículos, motoristas, manutenções, documentos e registros
+                      do livro deste espaço de trabalho. As configurações da empresa e os integrantes
+                      são mantidos. Use para zerar o cadastro antes de uma implantação real ou depois
+                      de testar com dados de exemplo.
+                    </p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="gap-2 text-stamp-bad" disabled={clearing}>
+                        {clearing ? (
+                          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Trash2 className="size-4" aria-hidden="true" />
+                        )}
+                        Limpar dados da frota
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="paper">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Limpar todo o cadastro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Todos os veículos, motoristas, manutenções, documentos e registros do livro
+                          de {org.name} serão excluídos. Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Manter meus dados</AlertDialogCancel>
+                        <AlertDialogAction onClick={clearRegister}>
+                          Sim, limpar tudo
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+                <div className="mt-5 border-t border-dashed border-border/70 pt-4 text-sm leading-6 text-muted-foreground">
+                  <p className="font-medium text-ink">Isolamento entre empresas</p>
+                  <p className="mt-1">
+                    Todo registro deste espaço de trabalho é vinculado a {org.name} no servidor.
+                    Usuários de outras empresas não conseguem consultar, listar ou adivinhar os seus
+                    dados — cada consulta e alteração revalida a associação antes de retornar algo.
+                  </p>
+                </div>
+              </PaperPanel>
+            ) : (
+              <EmptyNote
+                icon={ShieldCheck}
+                title="Acesso restrito"
+                description="Somente proprietário e administradores podem gerenciar os controles de dados deste espaço de trabalho."
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );

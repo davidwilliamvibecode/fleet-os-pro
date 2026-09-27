@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SectionHeading } from "@/components/notebook";
 import { COMPENSATION_LABELS, DRIVER_STATUS_META, toDateInput } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -156,6 +156,17 @@ export function DriverFormDialog({
 }) {
   const createDriver = useMutation(api.fleet.createDriver);
   const updateDriver = useMutation(api.fleet.updateDriver);
+  // Se a página não passar a lista de veículos, o formulário busca sozinho —
+  // o vínculo motorista ⇄ unidade funciona de qualquer tela.
+  const vehiclesQuery = useQuery(api.fleet.listVehicles, vehicleOptions.length ? "skip" : {});
+  const options = vehicleOptions.length
+    ? vehicleOptions
+    : (vehiclesQuery?.rows ?? []).map((row) => ({
+        id: row.id as string,
+        label: `Unidade ${row.unitNumber} · ${row.make} ${row.model}`,
+        taken: Boolean(row.assignedDriver),
+      }));
+
   const [values, setValues] = useState<Values>(() =>
     driver ? valuesFrom(driver) : blankValues(defaultVehicleId),
   );
@@ -169,9 +180,9 @@ export function DriverFormDialog({
     event.preventDefault();
     setError(null);
 
-    if (!values.firstName.trim()) return setError("First name is required.");
-    if (!values.lastName.trim()) return setError("Last name is required.");
-    if (!values.licenseNumber.trim()) return setError("License number is required.");
+    if (!values.firstName.trim()) return setError("O nome é obrigatório.");
+    if (!values.lastName.trim()) return setError("O sobrenome é obrigatório.");
+    if (!values.licenseNumber.trim()) return setError("O número da CNH é obrigatório.");
 
     const payload = {
       firstName: values.firstName,
@@ -201,10 +212,10 @@ export function DriverFormDialog({
     try {
       if (driver) {
         await updateDriver({ driverId: driver.id as Id<"drivers">, ...payload });
-        toast.success(`${values.firstName} ${values.lastName} updated`);
+        toast.success(`${values.firstName} ${values.lastName} atualizado`);
       } else {
         const result = await createDriver(payload);
-        toast.success(`${values.firstName} ${values.lastName} added to the roster`);
+        toast.success(`${values.firstName} ${values.lastName} adicionado à equipe`);
         onSaved?.(result.driverId as string);
       }
       onOpenChange(false);
@@ -224,80 +235,81 @@ export function DriverFormDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="paper max-h-[90vh] w-full max-w-3xl overflow-y-auto border-border p-0 sm:max-w-3xl">
+      <DialogContent className="max-h-[90vh] w-full max-w-3xl overflow-y-auto border-border p-0 sm:max-w-3xl">
         <form onSubmit={submit}>
           <DialogHeader className="border-b border-border/70 px-6 py-4">
             <DialogTitle className="text-lg">
-              {driver ? `Edit ${driver.firstName} ${driver.lastName}` : "Add a driver"}
+              {driver ? `Editar ${driver.firstName} ${driver.lastName}` : "Adicionar motorista"}
             </DialogTitle>
             <DialogDescription className="text-sm">
-              Credentials, pay model and the unit they run all live on this one record.
+              Habilitação, modelo de remuneração e a unidade que ele opera ficam neste único
+              registro.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-7 px-6 py-5">
             <section className="space-y-4">
-              <SectionHeading hint="required">Driver</SectionHeading>
+              <SectionHeading hint="obrigatório">Motorista</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="First name">
-                  <Input value={values.firstName} onChange={set("firstName")} className="paper" autoFocus />
+                <Field label="Nome">
+                  <Input value={values.firstName} onChange={set("firstName")} autoFocus />
                 </Field>
-                <Field label="Last name">
-                  <Input value={values.lastName} onChange={set("lastName")} className="paper" />
+                <Field label="Sobrenome">
+                  <Input value={values.lastName} onChange={set("lastName")} />
                 </Field>
-                <Field label="Phone">
-                  <Input value={values.phone} onChange={set("phone")} placeholder="(415) 555-0117" className="paper" />
+                <Field label="Telefone">
+                  <Input value={values.phone} onChange={set("phone")} placeholder="(11) 99999-0117" />
                 </Field>
-                <Field label="Email">
-                  <Input value={values.email} onChange={set("email")} type="email" className="paper" />
+                <Field label="E-mail">
+                  <Input value={values.email} onChange={set("email")} type="email" />
                 </Field>
-                <Field label="Address">
-                  <Input value={values.addressLine} onChange={set("addressLine")} className="paper" />
+                <Field label="Endereço">
+                  <Input value={values.addressLine} onChange={set("addressLine")} />
                 </Field>
-                <Field label="City">
-                  <Input value={values.city} onChange={set("city")} className="paper" />
+                <Field label="Cidade">
+                  <Input value={values.city} onChange={set("city")} />
                 </Field>
               </div>
             </section>
 
             <section className="space-y-4">
-              <SectionHeading hint="we flag renewals inside 45 days">Licence and credentials</SectionHeading>
+              <SectionHeading hint="avisamos sobre renovações com 45 dias">Habilitação e credenciais</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-4">
-                <Field label="Licence number">
+                <Field label="Número da CNH">
                   <Input
                     value={values.licenseNumber}
                     onChange={set("licenseNumber")}
-                    placeholder="CA-D8841207"
-                    className="paper font-mono"
+                    placeholder="SP-8841207"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Class">
-                  <Input value={values.licenseClass} onChange={set("licenseClass")} placeholder="A" className="paper" />
+                <Field label="Categoria">
+                  <Input value={values.licenseClass} onChange={set("licenseClass")} placeholder="AE" />
                 </Field>
-                <Field label="Licence expires">
-                  <Input type="date" value={values.licenseExpiry} onChange={set("licenseExpiry")} className="paper" />
+                <Field label="Validade da CNH">
+                  <Input type="date" value={values.licenseExpiry} onChange={set("licenseExpiry")} />
                 </Field>
-                <Field label="Medical card expires">
-                  <Input type="date" value={values.medicalExpiry} onChange={set("medicalExpiry")} className="paper" />
+                <Field label="Validade do exame toxicológico">
+                  <Input type="date" value={values.medicalExpiry} onChange={set("medicalExpiry")} />
                 </Field>
               </div>
             </section>
 
             <section className="space-y-4">
-              <SectionHeading hint="feeds cost-per-mile later on">Employment</SectionHeading>
+              <SectionHeading hint="alimenta o custo por km depois">Vínculo de trabalho</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-4">
-                <Field label="Hire date">
-                  <Input type="date" value={values.hireDate} onChange={set("hireDate")} className="paper" />
+                <Field label="Data de admissão">
+                  <Input type="date" value={values.hireDate} onChange={set("hireDate")} />
                 </Field>
-                <Field label="Status">
+                <Field label="Situação">
                   <Select
                     value={values.status}
                     onValueChange={(next) => setValues((c) => ({ ...c, status: next }))}
                   >
-                    <SelectTrigger className="paper w-full" aria-label="Employment status">
+                    <SelectTrigger className="w-full" aria-label="Situação do vínculo">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="paper">
+                    <SelectContent>
                       {Object.entries(DRIVER_STATUS_META).map(([value, meta]) => (
                         <SelectItem key={value} value={value}>
                           {meta.label}
@@ -306,15 +318,15 @@ export function DriverFormDialog({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Pay model">
+                <Field label="Modelo de remuneração">
                   <Select
                     value={values.compensationModel}
                     onValueChange={(next) => setValues((c) => ({ ...c, compensationModel: next }))}
                   >
-                    <SelectTrigger className="paper w-full" aria-label="Compensation model">
+                    <SelectTrigger className="w-full" aria-label="Modelo de remuneração">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="paper">
+                    <SelectContent>
                       {Object.entries(COMPENSATION_LABELS).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}
@@ -323,21 +335,21 @@ export function DriverFormDialog({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Rate">
+                <Field label="Valor da remuneração">
                   <Input
                     value={values.rate}
                     onChange={set("rate")}
-                    placeholder="0.62"
+                    placeholder="2.40"
                     inputMode="decimal"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Depot / yard">
-                  <Input value={values.depot} onChange={set("depot")} className="paper" />
+                <Field label="Base / pátio">
+                  <Input value={values.depot} onChange={set("depot")} />
                 </Field>
                 <Field
-                  label="Assigned unit"
-                  hint="Assigning here updates the vehicle record too."
+                  label="Unidade vinculada"
+                  hint="Vincular aqui também atualiza o registro do veículo."
                   className="sm:col-span-3"
                 >
                   <Select
@@ -346,15 +358,15 @@ export function DriverFormDialog({
                       setValues((c) => ({ ...c, assignedVehicleId: next === "none" ? "" : next }))
                     }
                   >
-                    <SelectTrigger className="paper w-full" aria-label="Assigned unit">
-                      <SelectValue placeholder="No unit" />
+                    <SelectTrigger className="w-full" aria-label="Unidade vinculada">
+                      <SelectValue placeholder="Sem unidade" />
                     </SelectTrigger>
-                    <SelectContent className="paper">
-                      <SelectItem value="none">No unit assigned</SelectItem>
-                      {vehicleOptions.map((vehicle) => (
+                    <SelectContent>
+                      <SelectItem value="none">Sem unidade vinculada</SelectItem>
+                      {options.map((vehicle) => (
                         <SelectItem key={vehicle.id} value={vehicle.id}>
                           {vehicle.label}
-                          {vehicle.taken ? " (has a driver)" : ""}
+                          {vehicle.taken ? " (já tem motorista)" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -364,28 +376,26 @@ export function DriverFormDialog({
             </section>
 
             <section className="space-y-4">
-              <SectionHeading>Emergency contact</SectionHeading>
+              <SectionHeading>Contato de emergência</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Name">
+                <Field label="Nome">
                   <Input
                     value={values.emergencyContactName}
                     onChange={set("emergencyContactName")}
-                    className="paper"
                   />
                 </Field>
-                <Field label="Phone">
+                <Field label="Telefone">
                   <Input
                     value={values.emergencyContactPhone}
                     onChange={set("emergencyContactPhone")}
-                    className="paper"
                   />
                 </Field>
               </div>
             </section>
 
             <section className="space-y-4">
-              <SectionHeading>Notes</SectionHeading>
-              <Textarea value={values.notes} onChange={set("notes")} rows={3} className="paper" />
+              <SectionHeading>Observações</SectionHeading>
+              <Textarea value={values.notes} onChange={set("notes")} rows={3} />
             </section>
 
             {error ? (
@@ -400,11 +410,11 @@ export function DriverFormDialog({
 
           <DialogFooter className="border-t border-border/70 px-6 py-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="gap-2">
               {saving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-              {driver ? "Save changes" : "Add to roster"}
+              {driver ? "Salvar alterações" : "Adicionar à equipe"}
             </Button>
           </DialogFooter>
         </form>

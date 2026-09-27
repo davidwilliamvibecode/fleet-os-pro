@@ -26,60 +26,55 @@ import { useQuery } from "convex/react";
 import {
   AlertTriangle,
   Bell,
-  BookText,
   ChevronRight,
   IdCard,
   LayoutDashboard,
   LogOut,
   Menu,
-  NotebookPen,
   Search,
   Settings,
   Truck,
+  Waypoints,
 } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 const NAV_SECTIONS = [
   {
-    label: "Command",
-    items: [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+    label: "Comando",
+    items: [{ to: "/dashboard", label: "Painel", icon: LayoutDashboard }],
   },
   {
-    label: "The register",
+    label: "Frota",
     items: [
-      { to: "/vehicles", label: "Vehicles", icon: Truck },
-      { to: "/drivers", label: "Drivers", icon: IdCard },
+      { to: "/vehicles", label: "Veículos", icon: Truck },
+      { to: "/drivers", label: "Motoristas", icon: IdCard },
     ],
   },
   {
-    label: "Paperwork",
-    items: [{ to: "/logbook", label: "Log book", icon: BookText }],
-  },
-  {
-    label: "System",
-    items: [{ to: "/settings", label: "Settings", icon: Settings }],
+    label: "Sistema",
+    items: [{ to: "/settings", label: "Configurações", icon: Settings }],
   },
 ];
 
 const CRUMBS: Record<string, string> = {
-  dashboard: "Dashboard",
-  vehicles: "Vehicles",
-  drivers: "Drivers",
-  logbook: "Log book",
-  settings: "Settings",
+  dashboard: "Painel",
+  vehicles: "Veículos",
+  drivers: "Motoristas",
+  settings: "Configurações",
+  setup: "Configuração inicial",
 };
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="paper flex size-9 items-center justify-center rounded-md border border-border shadow-sm">
-        <NotebookPen className="size-4 text-pen" aria-hidden="true" />
+      <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+        <Waypoints className="size-4" aria-hidden="true" />
       </span>
       {compact ? null : (
         <span className="leading-tight">
           <span className="block text-sm font-semibold tracking-tight text-ink">Fleet Command</span>
-          <span className="font-hand block text-sm text-muted-foreground">fleet register</span>
+          <span className="block text-[0.7rem] text-muted-foreground">gestão de frota</span>
         </span>
       )}
     </div>
@@ -89,7 +84,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   return (
-    <nav className="flex flex-col gap-5 px-3 py-4" aria-label="Main">
+    <nav className="flex flex-col gap-5 px-3 py-4" aria-label="Principal">
       {NAV_SECTIONS.map((section) => (
         <div key={section.label}>
           <p className="px-2 pb-1.5 text-[0.65rem] font-semibold tracking-[0.13em] text-muted-foreground uppercase">
@@ -168,22 +163,22 @@ function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
         onKeyDown={(event) => {
           if (event.key === "Escape") setOpen(false);
         }}
-        placeholder="Search units, plates, VINs, drivers…"
-        aria-label="Search the fleet register"
-        className="paper h-9 border-border/80 pl-9 text-sm shadow-none"
+        placeholder="Buscar unidades, placas, chassi, motoristas…"
+        aria-label="Buscar na frota"
+        className="h-9 border-border/80 pl-9 text-sm shadow-none"
       />
       {showPanel ? (
         <div className="paper note-edge absolute top-11 left-0 z-50 w-full rounded-lg border border-border p-2">
           {!hasResults ? (
             <p className="px-2 py-3 text-sm text-muted-foreground">
-              No units or drivers match “{term.trim()}”.
+              Nenhuma unidade ou motorista corresponde a “{term.trim()}”.
             </p>
           ) : (
             <div className="space-y-2">
               {results?.vehicles.length ? (
                 <div>
                   <p className="px-2 pb-1 text-[0.65rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                    Vehicles
+                    Veículos
                   </p>
                   {results.vehicles.map((row) => (
                     <button
@@ -204,7 +199,7 @@ function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
               {results?.drivers.length ? (
                 <div>
                   <p className="px-2 pb-1 text-[0.65rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                    Drivers
+                    Motoristas
                   </p>
                   {results.drivers.map((row) => (
                     <button
@@ -243,7 +238,7 @@ function AttentionBell({ onNavigate }: { onNavigate?: () => void }) {
           variant="ghost"
           size="icon"
           className="relative"
-          aria-label={`Alerts: ${counts?.total ?? 0} needing attention`}
+          aria-label={`Alertas: ${counts?.total ?? 0} pendências`}
         >
           <Bell className="size-4" aria-hidden="true" />
           {counts?.total ? (
@@ -255,10 +250,10 @@ function AttentionBell({ onNavigate }: { onNavigate?: () => void }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="paper w-80 border-border">
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Needs attention</span>
+          <span>Precisa de atenção</span>
           {counts?.critical ? (
             <Badge variant="outline" className="rounded-md text-stamp-bad">
-              {counts.critical} urgent
+              {counts.critical} urgentes
             </Badge>
           ) : null}
         </DropdownMenuLabel>
@@ -288,7 +283,7 @@ function AttentionBell({ onNavigate }: { onNavigate?: () => void }) {
           ))
         ) : (
           <p className="px-2 py-4 text-sm text-muted-foreground">
-            Nothing overdue. Your paperwork is in order.
+            Nada vencido. Sua documentação está em ordem.
           </p>
         )}
         <DropdownMenuSeparator />
@@ -299,7 +294,7 @@ function AttentionBell({ onNavigate }: { onNavigate?: () => void }) {
           }}
           className="text-sm font-medium text-pen"
         >
-          Open the full attention list
+          Abrir a lista completa de pendências
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -315,7 +310,7 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Account menu">
+        <Button variant="ghost" size="icon" aria-label="Menu da conta">
           <span className="flex size-8 items-center justify-center rounded-full border border-border bg-muted font-mono text-xs font-semibold text-ink">
             {initials(org?.name ?? "FC")}
           </span>
@@ -323,9 +318,9 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="paper w-64 border-border">
         <DropdownMenuLabel className="flex flex-col gap-1">
-          <span className="text-sm text-ink">{org?.name ?? "Your company"}</span>
+          <span className="text-sm text-ink">{org?.name ?? "Sua empresa"}</span>
           <span className="font-mono text-[0.7rem] font-normal text-muted-foreground">
-            {role ? labelFrom(ORG_ROLE_LABELS, role) : "—"} · {user?.id ? "signed in" : ""}
+            {role ? labelFrom(ORG_ROLE_LABELS, role) : "—"} · {user?.id ? "conectado" : ""}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -335,15 +330,15 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
             navigate("/settings");
           }}
         >
-          <Settings className="size-4" aria-hidden="true" /> Company settings
+          <Settings className="size-4" aria-hidden="true" /> Configurações da empresa
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
             onNavigate?.();
-            navigate("/setup");
+            navigate("/settings?tab=logbook");
           }}
         >
-          <NotebookPen className="size-4" aria-hidden="true" /> Setup checklist
+          <Waypoints className="size-4" aria-hidden="true" /> Livro de registros
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -353,7 +348,7 @@ function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
             navigate("/");
           }}
         >
-          <LogOut className="size-4" aria-hidden="true" /> Sign out
+          <LogOut className="size-4" aria-hidden="true" /> Sair
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -369,11 +364,11 @@ export function AppShell({ children }: { children?: ReactNode }) {
     return [parts[0] ?? "dashboard", parts[1] ?? null];
   }, [location.pathname]);
 
-  if (isLoading) return <LoadingNote label="Opening Fleet Command…" />;
-  // New users (including guests) have no company yet — send them to the setup
-  // wizard. The pathname check is essential: the setup page itself renders this
-  // shell, so an unconditional redirect would loop /setup onto itself forever
-  // and the screen would never paint anything.
+  if (isLoading) return <LoadingNote label="Abrindo o Fleet Command…" />;
+  // Usuários novos (incluindo convidados) ainda não têm empresa — vão para o
+  // assistente de configuração. A checagem do pathname é essencial: a própria
+  // página de setup renderiza este shell, então um redirecionamento sem
+  // condição criaria um laço infinito e a tela nunca pintaria nada.
   if (workspace && !org && location.pathname !== "/setup") {
     return <Navigate to="/setup" replace />;
   }
@@ -381,18 +376,18 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const sidebarInner = (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
-        <Link to="/dashboard" onClick={() => setMobileOpen(false)} aria-label="Fleet Command home">
+        <Link to="/dashboard" onClick={() => setMobileOpen(false)} aria-label="Início do Fleet Command">
           <BrandMark />
         </Link>
       </div>
       <div className="border-b border-sidebar-border px-4 py-3">
-        <p className="truncate text-sm font-medium text-ink">{org?.name ?? "Your company"}</p>
+        <p className="truncate text-sm font-medium text-ink">{org?.name ?? "Sua empresa"}</p>
         <div className="mt-1.5 flex items-center gap-2">
           <Stamp tone="info" rotate={false}>
-            {role ? labelFrom(ORG_ROLE_LABELS, role) : "member"}
+            {role ? labelFrom(ORG_ROLE_LABELS, role) : "membro"}
           </Stamp>
           <span className="font-mono text-[0.68rem] text-muted-foreground">
-            {org?.currency ?? "USD"} · {org?.distanceUnit ?? "mi"}
+            {org?.currency ?? "BRL"} · {org?.distanceUnit ?? "km"}
           </span>
         </div>
       </div>
@@ -401,7 +396,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
       </div>
       <div className="border-t border-sidebar-border px-3 py-3">
         <p className="px-2 pb-2 text-xs leading-5 text-muted-foreground">
-          Version 1 covers the fleet register: vehicles, drivers and the paperwork around them.
+          Frota, motoristas, manutenções, documentos e prazos — tudo em um só lugar.
         </p>
         <Button
           variant="ghost"
@@ -410,7 +405,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           asChild
         >
           <Link to="/setup" onClick={() => setMobileOpen(false)}>
-            <NotebookPen className="size-4" aria-hidden="true" /> Setup checklist
+            <ClipboardCheckIcon /> Lista de configuração
           </Link>
         </Button>
       </div>
@@ -427,27 +422,27 @@ export function AppShell({ children }: { children?: ReactNode }) {
         <header className="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-border/80 bg-background/85 px-4 py-2.5 backdrop-blur-sm sm:px-6">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir navegação">
                 <Menu className="size-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
               <SheetHeader className="sr-only">
-                <SheetTitle>Fleet Command navigation</SheetTitle>
+                <SheetTitle>Navegação do Fleet Command</SheetTitle>
               </SheetHeader>
               {sidebarInner}
             </SheetContent>
           </Sheet>
 
-          <nav aria-label="Breadcrumb" className="hidden items-center gap-1.5 text-sm lg:flex">
+          <nav aria-label="Trilha de navegação" className="hidden items-center gap-1.5 text-sm lg:flex">
             <Link to="/dashboard" className="text-muted-foreground hover:text-ink">
               Fleet Command
             </Link>
             <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
             <span className="font-medium text-ink">
-              {CRUMBS[activeSection] ?? "Dashboard"}
-              {detailId && activeSection === "vehicles" ? " · unit file" : ""}
-              {detailId && activeSection === "drivers" ? " · driver file" : ""}
+              {CRUMBS[activeSection] ?? "Painel"}
+              {detailId && activeSection === "vehicles" ? " · prontuário" : ""}
+              {detailId && activeSection === "drivers" ? " · prontuário" : ""}
             </span>
           </nav>
 
@@ -467,11 +462,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
         <footer className="border-t border-border/70 px-4 py-4 sm:px-6">
           <p className="text-xs text-muted-foreground">
-            Fleet Command · {org?.name ?? "Your company"} · signed-in records are private to your
-            company.
+            Fleet Command · {org?.name ?? "Sua empresa"} · os registros são privados da sua empresa.
           </p>
         </footer>
       </div>
     </div>
   );
+}
+
+function ClipboardCheckIcon() {
+  return <Waypoints className="size-4" aria-hidden="true" />;
 }

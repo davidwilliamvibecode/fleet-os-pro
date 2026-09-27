@@ -29,7 +29,7 @@ import {
   toDateInput,
 } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -175,10 +175,10 @@ function EnumSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="paper w-full" aria-label={ariaLabel}>
+      <SelectTrigger className="w-full" aria-label={ariaLabel}>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="paper">
+      <SelectContent>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             {option.label}
@@ -208,6 +208,17 @@ export function VehicleFormDialog({
 }) {
   const createVehicle = useMutation(api.fleet.createVehicle);
   const updateVehicle = useMutation(api.fleet.updateVehicle);
+  // Se a página não passar a lista de motoristas, o próprio formulário a busca —
+  // assim o vínculo veículo ⇄ motorista funciona de qualquer tela.
+  const driversQuery = useQuery(api.fleet.listDrivers, driverOptions.length ? "skip" : {});
+  const options = driverOptions.length
+    ? driverOptions
+    : (driversQuery?.rows ?? []).map((row) => ({
+        id: row.id as string,
+        name: row.name,
+        assignedUnit: row.vehicleUnit,
+      }));
+
   const [values, setValues] = useState<Values>(() =>
     vehicle ? valuesFrom(vehicle) : blankValues(),
   );
@@ -221,12 +232,12 @@ export function VehicleFormDialog({
     event.preventDefault();
     setError(null);
 
-    if (!values.unitNumber.trim()) return setError("Give the unit a number (for example 101).");
-    if (!values.make.trim()) return setError("Make is required.");
-    if (!values.model.trim()) return setError("Model is required.");
-    if (!values.odometer.trim()) return setError("Enter the current odometer reading.");
+    if (!values.unitNumber.trim()) return setError("Dê um número à unidade (por exemplo 101).");
+    if (!values.make.trim()) return setError("A marca é obrigatória.");
+    if (!values.model.trim()) return setError("O modelo é obrigatório.");
+    if (!values.odometer.trim()) return setError("Informe a quilometragem atual.");
     if (!Number.isFinite(Number(values.odometer))) {
-      return setError("Odometer must be a number.");
+      return setError("A quilometragem deve ser um número.");
     }
 
     const payload = {
@@ -262,10 +273,10 @@ export function VehicleFormDialog({
     try {
       if (vehicle) {
         await updateVehicle({ vehicleId: vehicle.id as Id<"vehicles">, ...payload });
-        toast.success(`Unit ${values.unitNumber} updated`);
+        toast.success(`Unidade ${values.unitNumber} atualizada`);
       } else {
         const result = await createVehicle(payload);
-        toast.success(`Unit ${values.unitNumber} added to the register`);
+        toast.success(`Unidade ${values.unitNumber} adicionada ao cadastro`);
         onSaved?.(result.vehicleId as string);
       }
       onOpenChange(false);
@@ -286,101 +297,101 @@ export function VehicleFormDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="paper max-h-[90vh] w-full max-w-3xl overflow-y-auto border-border p-0 sm:max-w-3xl">
+      <DialogContent className="max-h-[90vh] w-full max-w-3xl overflow-y-auto border-border p-0 sm:max-w-3xl">
         <form onSubmit={submit}>
           <DialogHeader className="border-b border-border/70 px-6 py-4">
             <DialogTitle className="text-lg">
-              {vehicle ? `Edit unit ${vehicle.unitNumber}` : "Add a vehicle"}
+              {vehicle ? `Editar unidade ${vehicle.unitNumber}` : "Adicionar veículo"}
             </DialogTitle>
             <DialogDescription className="text-sm">
-              One entry here feeds the whole register — compliance dates, service targets and the
-              driver assignment all live on this record.
+              Um único cadastro alimenta toda a operação — prazos de conformidade, alvos de revisão e
+              o vínculo com o motorista ficam neste registro.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-7 px-6 py-5">
             <section className="space-y-4">
-              <SectionHeading hint="required">Identification</SectionHeading>
+              <SectionHeading hint="obrigatório">Identificação</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Unit number">
+                <Field label="Número da unidade">
                   <Input
                     value={values.unitNumber}
                     onChange={set("unitNumber")}
                     placeholder="101"
-                    className="paper font-mono"
+                    className="font-mono"
                     autoFocus
                   />
                 </Field>
-                <Field label="Type">
+                <Field label="Tipo">
                   <EnumSelect
                     value={values.vehicleType}
                     onChange={(next) => setValues((c) => ({ ...c, vehicleType: next }))}
                     options={optionList(VEHICLE_TYPE_LABELS)}
-                    ariaLabel="Vehicle type"
+                    ariaLabel="Tipo de veículo"
                   />
                 </Field>
-                <Field label="Year">
+                <Field label="Ano">
                   <Input
                     value={values.year}
                     onChange={set("year")}
                     placeholder="2022"
                     inputMode="numeric"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Make">
-                  <Input value={values.make} onChange={set("make")} placeholder="Volvo" className="paper" />
+                <Field label="Marca">
+                  <Input value={values.make} onChange={set("make")} placeholder="Volvo" />
                 </Field>
-                <Field label="Model">
-                  <Input value={values.model} onChange={set("model")} placeholder="VNL 860" className="paper" />
+                <Field label="Modelo">
+                  <Input value={values.model} onChange={set("model")} placeholder="FH 540" />
                 </Field>
-                <Field label="License plate">
-                  <Input value={values.plate} onChange={set("plate")} placeholder="NW-4821" className="paper font-mono uppercase" />
+                <Field label="Placa">
+                  <Input value={values.plate} onChange={set("plate")} placeholder="ABC1D23" className="font-mono uppercase" />
                 </Field>
                 <Field
-                  label="VIN"
-                  hint="17 characters — optional, but it protects against duplicate units."
+                  label="Chassi (VIN)"
+                  hint="17 caracteres — opcional, mas protege contra unidades duplicadas."
                   className="sm:col-span-3"
                 >
                   <Input
                     value={values.vin}
                     onChange={set("vin")}
-                    placeholder="4V4NC9EH2NN654321"
-                    className="paper font-mono uppercase"
+                    placeholder="9BWZZZ377VT004251"
+                    className="font-mono uppercase"
                   />
                 </Field>
               </div>
             </section>
 
             <section className="space-y-4">
-              <SectionHeading hint="how the unit is driven and serviced">Specification</SectionHeading>
+              <SectionHeading hint="como a unidade roda e é mantida">Especificação</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-4">
-                <Field label="Fuel">
+                <Field label="Combustível">
                   <EnumSelect
                     value={values.fuelType}
                     onChange={(next) => setValues((c) => ({ ...c, fuelType: next }))}
                     options={optionList(FUEL_TYPE_LABELS)}
-                    ariaLabel="Fuel type"
+                    ariaLabel="Combustível"
                   />
                 </Field>
-                <Field label="Transmission">
+                <Field label="Transmissão">
                   <EnumSelect
                     value={values.transmission}
                     onChange={(next) => setValues((c) => ({ ...c, transmission: next }))}
                     options={optionList(TRANSMISSION_LABELS)}
-                    ariaLabel="Transmission"
+                    ariaLabel="Transmissão"
                   />
                 </Field>
-                <Field label="Odometer">
+                <Field label="Hodômetro">
                   <Input
                     value={values.odometer}
                     onChange={set("odometer")}
                     placeholder="288900"
                     inputMode="numeric"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Status">
+                <Field label="Situação">
                   <EnumSelect
                     value={values.status}
                     onChange={(next) => setValues((c) => ({ ...c, status: next }))}
@@ -388,40 +399,40 @@ export function VehicleFormDialog({
                       value,
                       label: meta.label,
                     }))}
-                    ariaLabel="Status"
+                    ariaLabel="Situação"
                   />
                 </Field>
-                <Field label="Depot / yard">
-                  <Input value={values.depot} onChange={set("depot")} placeholder="Harbour Yard" className="paper" />
+                <Field label="Base / pátio">
+                  <Input value={values.depot} onChange={set("depot")} placeholder="Pátio Central" />
                 </Field>
-                <Field label="Next service date">
-                  <Input type="date" value={values.nextServiceDate} onChange={set("nextServiceDate")} className="paper" />
+                <Field label="Próxima revisão (data)">
+                  <Input type="date" value={values.nextServiceDate} onChange={set("nextServiceDate")} />
                 </Field>
-                <Field label="Next service odometer">
+                <Field label="Próxima revisão (km)">
                   <Input
                     value={values.nextServiceOdometer}
                     onChange={set("nextServiceOdometer")}
                     placeholder="303900"
                     inputMode="numeric"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Assigned driver" hint="Adding a driver here assigns the unit.">
+                <Field label="Motorista vinculado" hint="Vincular aqui já atualiza o registro do motorista.">
                   <Select
                     value={values.assignedDriverId || "none"}
                     onValueChange={(next) =>
                       setValues((c) => ({ ...c, assignedDriverId: next === "none" ? "" : next }))
                     }
                   >
-                    <SelectTrigger className="paper w-full" aria-label="Assigned driver">
-                      <SelectValue placeholder="Unassigned" />
+                    <SelectTrigger className="w-full" aria-label="Motorista vinculado">
+                      <SelectValue placeholder="Sem motorista" />
                     </SelectTrigger>
-                    <SelectContent className="paper">
-                      <SelectItem value="none">Unassigned</SelectItem>
-                      {driverOptions.map((driver) => (
+                    <SelectContent>
+                      <SelectItem value="none">Sem motorista</SelectItem>
+                      {options.map((driver) => (
                         <SelectItem key={driver.id} value={driver.id}>
                           {driver.name}
-                          {driver.assignedUnit ? ` (unit ${driver.assignedUnit})` : ""}
+                          {driver.assignedUnit ? ` (unidade ${driver.assignedUnit})` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -431,76 +442,74 @@ export function VehicleFormDialog({
             </section>
 
             <section className="space-y-4">
-              <SectionHeading hint="cost basis for future reporting">Ownership and value</SectionHeading>
+              <SectionHeading hint="base de custo para relatórios futuros">Propriedade e valor</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Ownership">
+                <Field label="Propriedade">
                   <EnumSelect
                     value={values.ownershipType}
                     onChange={(next) => setValues((c) => ({ ...c, ownershipType: next }))}
                     options={optionList(OWNERSHIP_LABELS)}
-                    ariaLabel="Ownership type"
+                    ariaLabel="Tipo de propriedade"
                   />
                 </Field>
-                <Field label="Acquired on">
-                  <Input type="date" value={values.acquisitionDate} onChange={set("acquisitionDate")} className="paper" />
+                <Field label="Adquirido em">
+                  <Input type="date" value={values.acquisitionDate} onChange={set("acquisitionDate")} />
                 </Field>
-                <Field label="Lease ends">
-                  <Input type="date" value={values.leaseEndDate} onChange={set("leaseEndDate")} className="paper" />
+                <Field label="Fim do contrato">
+                  <Input type="date" value={values.leaseEndDate} onChange={set("leaseEndDate")} />
                 </Field>
-                <Field label="Acquisition cost">
+                <Field label="Custo de aquisição (R$)">
                   <Input
                     value={values.acquisitionCost}
                     onChange={set("acquisitionCost")}
-                    placeholder="148000"
+                    placeholder="480000"
                     inputMode="numeric"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Current value">
+                <Field label="Valor atual (R$)">
                   <Input
                     value={values.currentValue}
                     onChange={set("currentValue")}
-                    placeholder="112000"
+                    placeholder="392000"
                     inputMode="numeric"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
               </div>
             </section>
 
             <section className="space-y-4">
-              <SectionHeading hint="we flag anything inside 45 days">Compliance dates</SectionHeading>
+              <SectionHeading hint="avisamos com 45 dias de antecedência">Datas de conformidade</SectionHeading>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Insurance policy">
+                <Field label="Apólice do seguro">
                   <Input
                     value={values.insurancePolicy}
                     onChange={set("insurancePolicy")}
                     placeholder="POL-1019932"
-                    className="paper font-mono"
+                    className="font-mono"
                   />
                 </Field>
-                <Field label="Insurance expires">
-                  <Input type="date" value={values.insuranceExpiry} onChange={set("insuranceExpiry")} className="paper" />
+                <Field label="Seguro vence em">
+                  <Input type="date" value={values.insuranceExpiry} onChange={set("insuranceExpiry")} />
                 </Field>
-                <Field label="Registration expires">
+                <Field label="Licenciamento vence em">
                   <Input
                     type="date"
                     value={values.registrationExpiry}
                     onChange={set("registrationExpiry")}
-                    className="paper"
                   />
                 </Field>
               </div>
             </section>
 
             <section className="space-y-4">
-              <SectionHeading>Notes</SectionHeading>
+              <SectionHeading>Observações</SectionHeading>
               <Textarea
                 value={values.notes}
                 onChange={set("notes")}
                 rows={3}
-                placeholder="Anything the next person to touch this unit should know."
-                className="paper"
+                placeholder="Qualquer informação que a próxima pessoa a usar esta unidade deva saber."
               />
             </section>
 
@@ -516,11 +525,11 @@ export function VehicleFormDialog({
 
           <DialogFooter className="border-t border-border/70 px-6 py-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="gap-2">
               {saving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-              {vehicle ? "Save changes" : "Add to register"}
+              {vehicle ? "Salvar alterações" : "Adicionar ao cadastro"}
             </Button>
           </DialogFooter>
         </form>

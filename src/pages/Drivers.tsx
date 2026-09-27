@@ -85,17 +85,17 @@ export default function DriversPage() {
     <AppShell>
       <div className="flex flex-col gap-6">
         <PageHeader
-          eyebrow="Driver roster"
-          title="Drivers"
-          description="Who drives for you, which unit they run, and when their licence and medical card fall due."
+          eyebrow="Equipe de motoristas"
+          title="Motoristas"
+          description="Quem dirige para você, qual unidade opera e quando vencem a CNH e o exame toxicológico."
           actions={
             <Button
               className="gap-2"
               onClick={() => setFormOpen(true)}
               disabled={!canEdit}
-              title={canEdit ? undefined : "Your role has read-only access"}
+              title={canEdit ? undefined : "Seu papel é somente leitura"}
             >
-              <Plus className="size-4" aria-hidden="true" /> Add driver
+              <Plus className="size-4" aria-hidden="true" /> Adicionar motorista
             </Button>
           }
         />
@@ -107,7 +107,7 @@ export default function DriversPage() {
                 htmlFor="driver-search"
                 className="text-[0.7rem] font-medium tracking-[0.07em] text-muted-foreground uppercase"
               >
-                Search
+                Buscar
               </label>
               <div className="relative mt-1.5">
                 <Search
@@ -118,21 +118,21 @@ export default function DriversPage() {
                   id="driver-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Name, phone, licence number, unit…"
-                  className="paper pl-9"
+                  placeholder="Nome, telefone, CNH, unidade…"
+                  className="pl-9"
                 />
               </div>
             </div>
             <div className="w-48">
               <span className="text-[0.7rem] font-medium tracking-[0.07em] text-muted-foreground uppercase">
-                Status
+                Situação
               </span>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="paper mt-1.5 w-full" aria-label="Filter by status">
+                <SelectTrigger className="mt-1.5 w-full" aria-label="Filtrar por situação">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="paper">
-                  <SelectItem value="all">All statuses</SelectItem>
+                <SelectContent>
+                  <SelectItem value="all">Todas as situações</SelectItem>
                   {Object.entries(DRIVER_STATUS_META).map(([value, meta]) => (
                     <SelectItem key={value} value={value}>
                       {meta.label}
@@ -150,13 +150,13 @@ export default function DriversPage() {
                   setStatus("all");
                 }}
               >
-                <X className="size-4" aria-hidden="true" /> Clear
+                <X className="size-4" aria-hidden="true" /> Limpar
               </Button>
             ) : null}
             <p className="ml-auto font-mono text-xs text-muted-foreground">
               {data === undefined
-                ? "counting…"
-                : `${formatNumber(data.total)} driver${data.total === 1 ? "" : "s"}`}
+                ? "contando…"
+                : `${formatNumber(data.total)} motorista${data.total === 1 ? "" : "s"}`}
             </p>
           </div>
         </PaperPanel>
@@ -171,16 +171,16 @@ export default function DriversPage() {
           rosterIsEmpty ? (
             <EmptyNote
               icon={IdCard}
-              title="No drivers on the roster yet"
-              description="Add your drivers to record licences, credentials, pay model and the unit each person runs. Fleet Command flags licence renewals before they become a problem."
+              title="Nenhum motorista na equipe ainda"
+              description="Cadastre seus motoristas para registrar CNH, credenciais, modelo de remuneração e a unidade que cada um opera. O Fleet Command avisa antes de qualquer renovação virar problema."
               action={
                 canEdit ? (
                   <Button className="gap-2" onClick={() => setFormOpen(true)}>
-                    <Plus className="size-4" aria-hidden="true" /> Add your first driver
+                    <Plus className="size-4" aria-hidden="true" /> Adicionar o primeiro motorista
                   </Button>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Ask an owner, admin or fleet manager to add drivers.
+                    Peça a um proprietário, administrador ou gestor de frota para adicionar motoristas.
                   </p>
                 )
               }
@@ -188,8 +188,8 @@ export default function DriversPage() {
           ) : (
             <EmptyNote
               icon={Search}
-              title="No drivers match those filters"
-              description="Try a shorter search term, or clear the filters to see the whole roster again."
+              title="Nenhum motorista corresponde a esses filtros"
+              description="Tente um termo mais curto de busca, ou limpe os filtros para ver a equipe inteira novamente."
               action={
                 <Button
                   variant="outline"
@@ -198,7 +198,7 @@ export default function DriversPage() {
                     setStatus("all");
                   }}
                 >
-                  Clear filters
+                  Limpar filtros
                 </Button>
               }
             />
@@ -214,7 +214,7 @@ export default function DriversPage() {
                       onClick={() => toggleSort("name")}
                       className="flex items-center gap-1 text-xs font-semibold tracking-[0.06em] uppercase"
                     >
-                      Driver {sortIcon("name")}
+                      Motorista {sortIcon("name")}
                     </button>
                   </TableHead>
                   <TableHead>
@@ -223,22 +223,22 @@ export default function DriversPage() {
                       onClick={() => toggleSort("status")}
                       className="flex items-center gap-1 text-xs font-semibold tracking-[0.06em] uppercase"
                     >
-                      Status {sortIcon("status")}
+                      Situação {sortIcon("status")}
                     </button>
                   </TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Pay model</TableHead>
-                  <TableHead>Phone</TableHead>
+                  <TableHead>Unidade</TableHead>
+                  <TableHead>Remuneração</TableHead>
+                  <TableHead>Telefone</TableHead>
                   <TableHead>
                     <button
                       type="button"
                       onClick={() => toggleSort("licence")}
                       className="flex items-center gap-1 text-xs font-semibold tracking-[0.06em] uppercase"
                     >
-                      Licence {sortIcon("licence")}
+                      CNH {sortIcon("licence")}
                     </button>
                   </TableHead>
-                  <TableHead>Medical</TableHead>
+                  <TableHead>Toxicológico</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,7 +256,7 @@ export default function DriversPage() {
                         <span className="block text-sm font-medium text-ink">{row.name}</span>
                         <span className="block font-mono text-xs text-muted-foreground">
                           {row.licenseNumber}
-                          {row.licenseClass ? ` · class ${row.licenseClass}` : ""}
+                          {row.licenseClass ? ` · categoria ${row.licenseClass}` : ""}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -272,7 +272,7 @@ export default function DriversPage() {
                             {row.vehicleUnit}
                           </Link>
                         ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
+                          <span className="text-muted-foreground">Sem unidade</span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
@@ -280,9 +280,9 @@ export default function DriversPage() {
                         {row.rate !== null ? (
                           <span className="block font-mono text-xs text-muted-foreground">
                             {row.compensationModel === "salary"
-                              ? `${currency} ${formatNumber(row.rate)}/yr`
+                              ? `${currency} ${formatNumber(row.rate)}/ano`
                               : row.compensationModel === "hourly"
-                                ? `${currency} ${row.rate}/hr`
+                                ? `${currency} ${row.rate}/h`
                                 : row.compensationModel === "per_mile"
                                   ? `${currency} ${row.rate}/${distanceUnit}`
                                   : `${currency} ${formatNumber(row.rate)}`}

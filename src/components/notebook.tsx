@@ -57,7 +57,7 @@ export function StickyNote({
   return (
     <div
       style={{ rotate }}
-      className={cn("sticky-note rounded-[3px] p-4 text-sm text-[#4a3c12]", className)}
+      className={cn("sticky-note p-4 text-sm", className)}
     >
       {children}
     </div>
@@ -282,7 +282,7 @@ export function EmptyNote({
   );
 }
 
-export function LoadingNote({ label = "Opening the register…" }: { label?: string }) {
+export function LoadingNote({ label = "Abrindo o cadastro…" }: { label?: string }) {
   return (
     <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
       <Loader2 className="size-4 animate-spin" aria-hidden="true" />
