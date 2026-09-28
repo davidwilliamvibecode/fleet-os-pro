@@ -6,7 +6,7 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import "./index.css";
 
 // Lazy load route components for better code splitting
@@ -17,7 +17,6 @@ const Vehicles = lazy(() => import("./pages/Vehicles.tsx"));
 const VehicleDetail = lazy(() => import("./pages/VehicleDetail.tsx"));
 const Drivers = lazy(() => import("./pages/Drivers.tsx"));
 const DriverDetail = lazy(() => import("./pages/DriverDetail.tsx"));
-const Logbook = lazy(() => import("./pages/Logbook.tsx"));
 const Settings = lazy(() => import("./pages/Settings.tsx"));
 const Setup = lazy(() => import("./pages/Setup.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
@@ -26,7 +25,7 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 function RouteLoading() {
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="animate-pulse text-muted-foreground">Carregando…</div>
     </div>
   );
 }
@@ -171,13 +170,10 @@ createRoot(document.getElementById("root")!).render(
                   </RequireAuth>
                 }
               />
+              {/* O livro de registros agora vive nas Configurações. */}
               <Route
                 path="/logbook"
-                element={
-                  <RequireAuth>
-                    <Logbook />
-                  </RequireAuth>
-                }
+                element={<Navigate to="/settings?tab=logbook" replace />}
               />
               <Route
                 path="/settings"

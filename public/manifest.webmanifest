@@ -1,11 +1,12 @@
 {
   "name": "Fleet Command",
   "short_name": "Fleet Command",
-  "description": "Fleet management operating system for vehicles, drivers, compliance and operating costs.",
+  "description": "Sistema de gestão de frota para veículos, motoristas, manutenção, documentos e custos operacionais.",
+  "lang": "pt-BR",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#f3eee2",
-  "theme_color": "#2b4a75",
+  "background_color": "#f6f7fb",
+  "theme_color": "#1d4ed8",
   "icons": [
     {
       "src": "/logo.svg",
