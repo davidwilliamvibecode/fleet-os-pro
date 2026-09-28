@@ -154,8 +154,8 @@ export function DriverFormDialog({
   defaultVehicleId?: string;
   onSaved?: (driverId: string) => void;
 }) {
-  const createDriver = useMutation(api.fleet.createDriver);
-  const updateDriver = useMutation(api.fleet.updateDriver);
+  const createDriver = useMutation(api.drivers.createDriver);
+  const updateDriver = useMutation(api.drivers.updateDriver);
   // Se a página não passar a lista de veículos, o formulário busca sozinho —
   // o vínculo motorista ⇄ unidade funciona de qualquer tela.
   const vehiclesQuery = useQuery(api.fleet.listVehicles, vehicleOptions.length ? "skip" : {});

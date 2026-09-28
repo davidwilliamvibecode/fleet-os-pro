@@ -210,7 +210,7 @@ export function VehicleFormDialog({
   const updateVehicle = useMutation(api.fleet.updateVehicle);
   // Se a página não passar a lista de motoristas, o próprio formulário a busca —
   // assim o vínculo veículo ⇄ motorista funciona de qualquer tela.
-  const driversQuery = useQuery(api.fleet.listDrivers, driverOptions.length ? "skip" : {});
+  const driversQuery = useQuery(api.drivers.listDrivers, driverOptions.length ? "skip" : {});
   const options = driverOptions.length
     ? driverOptions
     : (driversQuery?.rows ?? []).map((row) => ({

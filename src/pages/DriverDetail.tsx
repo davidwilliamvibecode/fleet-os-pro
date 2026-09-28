@@ -54,10 +54,10 @@ export default function DriverDetailPage() {
   const navigate = useNavigate();
   const { currency, distanceUnit, role } = useWorkspace();
   const data = useQuery(
-    api.fleet.driverDetail,
+    api.drivers.driverDetail,
     driverId ? { driverId: driverId as Id<"drivers"> } : "skip",
   );
-  const deleteDriver = useMutation(api.fleet.deleteDriver);
+  const deleteDriver = useMutation(api.drivers.deleteDriver);
   const [editOpen, setEditOpen] = useState(false);
 
   if (data === undefined) {

@@ -50,7 +50,7 @@ export default function DriversPage() {
   const deferredSearch = useDeferredValue(search);
   const canEdit = canEditFleet(role);
 
-  const data = useQuery(api.fleet.listDrivers, { search: deferredSearch, status });
+  const data = useQuery(api.drivers.listDrivers, { search: deferredSearch, status });
 
   const rows = [...(data?.rows ?? [])].sort((a, b) => {
     const direction = sort.direction === "asc" ? 1 : -1;
