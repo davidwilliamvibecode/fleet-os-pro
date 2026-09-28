@@ -432,9 +432,15 @@ export default function Landing() {
             <Waypoints className="size-4 text-pen" aria-hidden="true" />
             <span>Fleet Command · sistema de gestão de frota</span>
           </div>
-          <span className="font-mono text-xs">
-            v1 · veículos, motoristas, manutenção e documentos
-          </span>
+          <div className="flex items-center gap-4 font-mono text-xs">
+            <Link to="/termos" className="transition-colors hover:text-ink">
+              Termos de uso
+            </Link>
+            <Link to="/privacidade" className="transition-colors hover:text-ink">
+              Privacidade
+            </Link>
+            <span>v1 · veículos, motoristas, manutenção e documentos</span>
+          </div>
         </div>
       </footer>
     </div>

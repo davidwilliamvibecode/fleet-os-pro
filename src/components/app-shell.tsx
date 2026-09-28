@@ -461,8 +461,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </main>
 
         <footer className="border-t border-border/70 px-4 py-4 sm:px-6">
-          <p className="text-xs text-muted-foreground">
-            Fleet Command · {org?.name ?? "Sua empresa"} · os registros são privados da sua empresa.
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>Fleet Command · {org?.name ?? "Sua empresa"} · os registros são privados da sua empresa.</span>
+            <Link to="/termos" className="transition-colors hover:text-ink">
+              Termos de uso
+            </Link>
+            <Link to="/privacidade" className="transition-colors hover:text-ink">
+              Privacidade
+            </Link>
           </p>
         </footer>
       </div>

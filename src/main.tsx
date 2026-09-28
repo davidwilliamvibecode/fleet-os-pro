@@ -20,6 +20,7 @@ const DriverDetail = lazy(() => import("./pages/DriverDetail.tsx"));
 const Settings = lazy(() => import("./pages/Settings.tsx"));
 const Setup = lazy(() => import("./pages/Setup.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+import { TermsPage, PrivacyPage } from "./pages/Legal";
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -147,6 +148,8 @@ createRoot(document.getElementById("root")!).render(
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/termos" element={<TermsPage />} />
+              <Route path="/privacidade" element={<PrivacyPage />} />
               <Route
                 path="/auth"
                 element={<AuthPage redirectAfterAuth="/dashboard" />}
