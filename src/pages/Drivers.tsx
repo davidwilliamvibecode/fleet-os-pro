@@ -159,6 +159,12 @@ export default function DriversPage() {
                 : `${formatNumber(data.total)} motorista${data.total === 1 ? "" : "s"}`}
             </p>
           </div>
+          {role === "driver" ? (
+            <p className="mt-3 border-t border-dashed border-border/70 pt-3 text-xs text-muted-foreground">
+              Visão operacional: você vê o nome, a unidade e a situação dos colegas. Telefone,
+              e-mail, CNH e remuneração de terceiros não são exibidos.
+            </p>
+          ) : null}
         </PaperPanel>
 
         {data === undefined ? (

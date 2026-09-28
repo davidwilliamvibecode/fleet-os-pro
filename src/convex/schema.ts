@@ -165,10 +165,17 @@ const schema = defineSchema(
       image: v.optional(v.string()), // image of the user. do not remove
       email: v.optional(v.string()), // email of the user. do not remove
       emailVerificationTime: v.optional(v.number()), // email verification time. do not remove
+      // phone + phoneVerificationTime are part of @convex-dev/auth's own users
+      // table. Sem eles, qualquer provedor por telefone (ou um `profile` que
+      // traga `phone`) quebraria a criação de conta.
+      phone: v.optional(v.string()),
+      phoneVerificationTime: v.optional(v.number()),
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+    })
+      .index("email", ["email"]) // index for the email. do not remove or modify
+      .index("phone", ["phone"]),
 
     /**
      * One row per fleet company (tenant). Every operational record points back
@@ -349,7 +356,11 @@ const schema = defineSchema(
       .index("by_org_status", ["orgId", "status"]),
   },
   {
-    schemaValidation: false,
+    // Validação ligada: toda escrita passa a ser conferida contra este schema,
+    // então um bug que gravasse um campo errado falha alto e cedo, em vez de
+    // deixar lixo no banco. O schema abaixo cobre tudo o que o app e o
+    // @convex-dev/auth escrevem (verificado campo por campo).
+    schemaValidation: true,
   },
 );
 

@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
+import { canSeeDriverPersonalData } from "./access";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   COMPANY_ROLES,
@@ -482,11 +483,14 @@ export const workspace = query({
     const members = await Promise.all(
       memberRows.map(async (row) => {
         const memberUser = await ctx.db.get(row.userId);
+        // O e-mail de um integrante é dado pessoal: quem gere contas (owner e
+        // admin) precisa dele, os demais papéis só veem nome e papel.
+        const canSeeEmail = membership.role === "owner" || membership.role === "admin";
         return {
           membershipId: row._id,
           userId: row.userId,
-          name: memberUser?.name ?? memberUser?.email ?? "Team member",
-          email: memberUser?.email ?? "",
+          name: memberUser?.name ?? memberUser?.email ?? "Integrante",
+          email: canSeeEmail ? (memberUser?.email ?? "") : "",
           role: row.role as OrgRole,
           joinedAt: row.createdAt,
         };
@@ -999,6 +1003,11 @@ export const vehicleDetail = query({
       .query("drivers")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(500);
+    // Contato e CNH do motorista vinculado são dado pessoal: valem só para quem
+    // tem acesso ao prontuário dele (ver access.ts).
+    const canSeeDriverContact = driver
+      ? canSeeDriverPersonalData(context.role, driver.email, context.email)
+      : true;
 
     return {
       vehicle: {
@@ -1017,11 +1026,11 @@ export const vehicleDetail = query({
         ? {
             id: driver._id,
             name: `${driver.firstName} ${driver.lastName}`,
-            phone: driver.phone ?? null,
-            email: driver.email ?? null,
+            phone: canSeeDriverContact ? (driver.phone ?? null) : null,
+            email: canSeeDriverContact ? (driver.email ?? null) : null,
             status: driver.status,
-            licenseNumber: driver.licenseNumber,
-            licenseExpiry: driver.licenseExpiry ?? null,
+            licenseNumber: canSeeDriverContact ? driver.licenseNumber : "",
+            licenseExpiry: canSeeDriverContact ? (driver.licenseExpiry ?? null) : null,
           }
         : null,
       activity: activity.map((row) => ({

@@ -263,7 +263,13 @@ export default function VehicleDetailPage() {
             <KpiCard
               label="Motorista vinculado"
               value={driver ? driver.name.split(" ")[0] : "—"}
-              hint={driver ? `CNH ${driver.licenseNumber}` : "Ninguém está vinculado a esta unidade"}
+              hint={
+                driver
+                  ? driver.licenseNumber
+                    ? `CNH ${driver.licenseNumber}`
+                    : "Vinculado a esta unidade"
+                  : "Ninguém está vinculado a esta unidade"
+              }
               tone={driver ? "ok" : "info"}
             />
             <KpiCard
@@ -611,12 +617,16 @@ export default function VehicleDetailPage() {
                         {driver.name}
                       </Link>
                     </LedgerRow>
-                    <LedgerRow label="Telefone">{driver.phone}</LedgerRow>
-                    <LedgerRow label="E-mail">{driver.email}</LedgerRow>
-                    <LedgerRow label="CNH" mono>
-                      {driver.licenseNumber}
-                    </LedgerRow>
-                    <LedgerRow label="Validade da CNH">{formatDate(driver.licenseExpiry)}</LedgerRow>
+                    {driver.phone ? <LedgerRow label="Telefone">{driver.phone}</LedgerRow> : null}
+                    {driver.email ? <LedgerRow label="E-mail">{driver.email}</LedgerRow> : null}
+                    {driver.licenseNumber ? (
+                      <LedgerRow label="CNH" mono>
+                        {driver.licenseNumber}
+                      </LedgerRow>
+                    ) : null}
+                    {driver.licenseExpiry ? (
+                      <LedgerRow label="Validade da CNH">{formatDate(driver.licenseExpiry)}</LedgerRow>
+                    ) : null}
                   </LedgerList>
                   <Button variant="outline" size="sm" className="mt-4" asChild>
                     <Link to={`/drivers/${driver.id}`}>Abrir prontuário do motorista</Link>

@@ -90,17 +90,38 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 
 
+/**
+ * Origem de quem nos embutiu (a barra da plataforma), quando dá para saber.
+ *
+ * Antes o RouteSyncer falava com `"*"`, o que entrega o caminho atual da
+ * aplicação a qualquer janela que a abra. Preferimos a origem real do pai;
+ * `"*"` só continua valendo como último recurso, quando o navegador não informa
+ * o referrer (iframe com política restritiva), para não quebrar a navegação.
+ */
+function embeddingOrigin(): string | null {
+  if (window.parent === window) return null;
+  if (!document.referrer) return null;
+  try {
+    return new URL(document.referrer).origin;
+  } catch {
+    return null;
+  }
+}
+
 function RouteSyncer() {
   const location = useLocation();
   useEffect(() => {
     window.parent.postMessage(
       { type: "iframe-route-change", path: location.pathname },
-      "*",
+      embeddingOrigin() ?? "*",
     );
   }, [location.pathname]);
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      if (event.source !== window.parent) return;
+      const parent = embeddingOrigin();
+      if (parent && event.origin !== parent && event.origin !== window.location.origin) return;
       if (event.data?.type === "navigate") {
         if (event.data.direction === "back") window.history.back();
         if (event.data.direction === "forward") window.history.forward();

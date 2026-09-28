@@ -14,6 +14,7 @@ import {
   requireRole,
 } from "./fleet";
 import { COMPANY_ROLES, DRIVER_STATUSES, FLEET_WRITE_ROLES } from "./constants";
+import { canSeeDriverPersonalData } from "./access";
 import {
   compensationValidator,
   driverStatusValidator,
@@ -25,6 +26,8 @@ import {
 /*  Vehicle assignment lives on the vehicle record, so both sides always      */
 /*  agree on who is running which unit.                                       */
 /* -------------------------------------------------------------------------- */
+
+
 
 export const driverInput = {
   firstName: v.string(),
@@ -162,24 +165,28 @@ export const listDrivers = query({
     const term = (args.search ?? "").trim().toLowerCase();
     let rows = drivers.map((driver) => {
       const assignment = assignmentByDriver.get(driver._id as string) ?? null;
+      const personal = canSeeDriverPersonalData(context.role, driver.email, context.email);
       return {
         id: driver._id,
         firstName: driver.firstName,
         lastName: driver.lastName,
         name: `${driver.firstName} ${driver.lastName}`,
-        phone: driver.phone ?? null,
-        email: driver.email ?? null,
-        licenseNumber: driver.licenseNumber,
-        licenseClass: driver.licenseClass ?? null,
-        licenseExpiry: driver.licenseExpiry ?? null,
-        medicalExpiry: driver.medicalExpiry ?? null,
-        hireDate: driver.hireDate ?? null,
+        phone: personal ? (driver.phone ?? null) : null,
+        email: personal ? (driver.email ?? null) : null,
+        // Vazio (e não null) para manter o tipo do frontend estável.
+        licenseNumber: personal ? driver.licenseNumber : "",
+        licenseClass: personal ? (driver.licenseClass ?? null) : null,
+        licenseExpiry: personal ? (driver.licenseExpiry ?? null) : null,
+        medicalExpiry: personal ? (driver.medicalExpiry ?? null) : null,
+        hireDate: personal ? (driver.hireDate ?? null) : null,
         status: driver.status,
         compensationModel: driver.compensationModel,
-        // Payroll data: only the roles that run the numbers get the figure.
-        rate: canSeeCompensation(context.role) ? (driver.rate ?? null) : null,
-        depot: driver.depot ?? null,
-        notes: driver.notes ?? null,
+        // Payroll data: only the roles that run the numbers get the figure, and
+        // um motorista só vê o próprio valor.
+        rate:
+          personal && canSeeCompensation(context.role) ? (driver.rate ?? null) : null,
+        depot: personal ? (driver.depot ?? null) : null,
+        notes: personal ? (driver.notes ?? null) : null,
         vehicleUnit: assignment?.unitNumber ?? null,
         vehicleId: assignment?.vehicleId ?? null,
         createdAt: driver.createdAt,
@@ -208,6 +215,8 @@ export const driverDetail = query({
     if (!context) return null;
     const driver = await ctx.db.get(args.driverId);
     if (!driver || driver.orgId !== context.orgId) return null;
+    // O prontuário completo é dado pessoal: um motorista não abre o do colega.
+    if (!canSeeDriverPersonalData(context.role, driver.email, context.email)) return null;
 
     const assignment = await ctx.db
       .query("vehicles")

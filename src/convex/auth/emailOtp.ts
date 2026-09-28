@@ -2,6 +2,21 @@ import { Email } from "@convex-dev/auth/providers/Email";
 import axios from "axios";
 import { RandomReader, generateRandomString } from "@oslojs/crypto/random";
 
+/**
+ * Chave do relay de e-mail da plataforma.
+ *
+ * Antes ela vivia fixa aqui — segredo em código, versionado no git. Agora a
+ * configuração vem do ambiente: defina `VLY_EMAIL_API_KEY` no painel de chaves
+ * do projeto. O valor abaixo é apenas o fallback de migração, para não derrubar
+ * o login por e-mail antes da variável existir; assim que ela estiver definida,
+ * apague a constante e **rotacione a chave** (a antiga está no histórico).
+ */
+const LEGACY_EMAIL_API_KEY = "fb_email_2crN1hqIArZP2bEfvjp5Qik4";
+
+function emailApiKey() {
+  return process.env.VLY_EMAIL_API_KEY ?? LEGACY_EMAIL_API_KEY;
+}
+
 export const emailOtp = Email({
   id: "email-otp",
   maxAge: 60 * 15, // 15 minutes
@@ -26,7 +41,7 @@ export const emailOtp = Email({
         },
         {
           headers: {
-            "x-api-key": "fb_email_2crN1hqIArZP2bEfvjp5Qik4",
+            "x-api-key": emailApiKey(),
           },
         },
       );

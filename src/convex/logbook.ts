@@ -6,6 +6,7 @@ import {
   type ActivityEntity,
 } from "./schema";
 import { orgContext } from "./fleet";
+import { canSeeDriverPersonalData } from "./access";
 
 /* -------------------------------------------------------------------------- */
 /*  Log book + global search                                                  */
@@ -60,10 +61,16 @@ export const search = query({
       .query("vehicles")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(400);
-    const drivers = await ctx.db
+    const allDrivers = await ctx.db
       .query("drivers")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(400);
+    // Busca não é porta de saída para dado pessoal: um integrante com papel
+    // `driver` só encontra o próprio prontuário (os colegas ficam de fora, já
+    // que aqui a resposta inclui CNH no subtítulo).
+    const drivers = allDrivers.filter((driver) =>
+      canSeeDriverPersonalData(context.role, driver.email, context.email),
+    );
 
     const match = (values: (string | null | undefined)[]) =>
       values.filter(Boolean).some((value) => String(value).toLowerCase().includes(term));

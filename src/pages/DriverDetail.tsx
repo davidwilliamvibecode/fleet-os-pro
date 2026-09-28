@@ -73,8 +73,8 @@ export default function DriverDetailPage() {
       <AppShell>
         <EmptyNote
           icon={IdCard}
-          title="Esse motorista não está na sua equipe"
-          description="O registro pode ter sido removido, ou o link pertence a outra empresa."
+          title="Prontuário indisponível"
+          description="O registro pode ter sido removido, o link pertence a outra empresa, ou o seu papel não dá acesso aos dados pessoais deste motorista."
           action={
             <Button asChild>
               <Link to="/drivers">Voltar à equipe</Link>
