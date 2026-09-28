@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionHeading } from "@/components/notebook";
-import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, toDateInput } from "@/lib/format";
+import { DOCUMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 import { useMutation } from "convex/react";
 import { FileText, Loader2 } from "lucide-react";
