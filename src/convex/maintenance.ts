@@ -10,7 +10,7 @@ import {
   type DocumentType,
   type DocumentStatus,
 } from "./schema";
-import { FLEET_WRITE_ROLES, type OrgRole } from "./constants";
+import { COMPANY_ROLES, FLEET_WRITE_ROLES, type OrgRole } from "./constants";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -407,6 +407,40 @@ export const updateVehicleDocumentStatus = mutation({
       summary: `Status do documento "${doc.title}" alterado para ${args.status}.`,
     });
     return { ok: true };
+  },
+});
+
+/**
+ * Wipes every maintenance record and vehicle document of the company.
+ *
+ * `fleet.clearFleetData` removes the register (vehicles, drivers, log) but not
+ * these two tables, so service history, vendor names, costs and tax amounts
+ * survived the "clear my data" action. The data-controls screen calls this
+ * right after it, which is what makes the copy on that screen true.
+ */
+export const purgeFleetExtras = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const context = await requireOrg(ctx);
+    requireRole(
+      context.role,
+      COMPANY_ROLES,
+      "Somente proprietário ou administrador pode limpar os dados da frota.",
+    );
+
+    const records = await ctx.db
+      .query("maintenanceRecords")
+      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
+      .take(500);
+    const documents = await ctx.db
+      .query("vehicleDocuments")
+      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
+      .take(500);
+
+    for (const row of records) await ctx.db.delete(row._id);
+    for (const row of documents) await ctx.db.delete(row._id);
+
+    return { maintenance: records.length, documents: documents.length };
   },
 });
 

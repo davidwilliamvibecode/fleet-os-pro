@@ -58,7 +58,23 @@ export function canEditFleet(role: OrgRole | null | undefined) {
   return role === "owner" || role === "admin" || role === "fleet_manager";
 }
 
-/** Roles that may change company settings, team and destructive actions. */
+/** Roles that may change company settings and destructive actions. */
 export function canManageCompany(role: OrgRole | null | undefined) {
   return role === "owner" || role === "admin";
+}
+
+/**
+ * Roles that may invite members, change roles or remove people.
+ * Owner-only, mirroring TEAM_ROLES on the server: handing out membership is an
+ * ownership function, so an admin must not be able to mint other owners.
+ */
+export function canManageTeam(role: OrgRole | null | undefined) {
+  return role === "owner";
+}
+
+/** Roles allowed to read driver compensation (payroll data). */
+export function canViewCompensation(role: OrgRole | null | undefined) {
+  return (
+    role === "owner" || role === "admin" || role === "fleet_manager" || role === "finance"
+  );
 }

@@ -74,8 +74,19 @@ export const VOLUME_UNITS = ["gal", "l"] as const;
 export const FLEET_WRITE_ROLES: OrgRole[] = ["owner", "admin", "fleet_manager"];
 /** Roles that may edit company settings. */
 export const COMPANY_ROLES: OrgRole[] = ["owner", "admin"];
-/** Roles that may manage team members. */
-export const TEAM_ROLES: OrgRole[] = ["owner", "admin"];
+/**
+ * Roles that may manage team members (invite, change role, remove).
+ *
+ * Owner-only on purpose: an admin could otherwise promote an accomplice (or
+ * themselves, through a peer) to `owner` and take the workspace over. Team
+ * membership is an account-ownership function, which the product spec also
+ * reserves to the owner.
+ */
+export const TEAM_ROLES: OrgRole[] = ["owner"];
+/** Roles that may hand out owner access. Deliberately narrow: an admin cannot mint owners. */
+export const OWNER_ROLES: OrgRole[] = ["owner"];
+/** Roles allowed to read driver compensation (salary data). */
+export const COMPENSATION_ROLES: OrgRole[] = ["owner", "admin", "fleet_manager", "finance"];
 
 export const MAINTENANCE_TYPES = [
   "preventive",

@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DISTANCE_UNITS, VOLUME_UNITS } from "@/convex/constants";
 import {
   canManageCompany,
+  canManageTeam,
   useWorkspace,
   type WorkspaceMember,
 } from "@/hooks/use-workspace";
@@ -124,6 +125,7 @@ export default function SettingsPage() {
   const updateRole = useMutation(api.fleet.updateMemberRole);
   const removeMemberM = useMutation(api.fleet.removeMember);
   const clearData = useMutation(api.fleet.clearFleetData);
+  const purgeExtras = useMutation(api.maintenance.purgeFleetExtras);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") ?? "empresa";
@@ -137,6 +139,8 @@ export default function SettingsPage() {
   const [clearing, setClearing] = useState(false);
 
   const canManage = canManageCompany(role);
+  // Equipe é função de propriedade: o servidor só aceita o proprietário.
+  const canManageMembers = canManageTeam(role);
 
   // Mantém o formulário sincronizado se o espaço de trabalho carregar depois.
   if (org && values === null) {
@@ -235,8 +239,13 @@ export default function SettingsPage() {
     setClearing(true);
     try {
       const result = await clearData({});
+      // `clearFleetData` limpa o cadastro (veículos, motoristas e livro), mas não
+      // as manutenções e os documentos — sem esta segunda chamada a tela prometia
+      // apagar tudo e deixava histórico de serviço, custos e impostos no banco.
+      const purged = await purgeExtras({});
+      const extras = purged.maintenance + purged.documents;
       toast.success(
-        `${result.vehicles} veículos e ${result.drivers} motoristas removidos`,
+        `${result.vehicles} veículos, ${result.drivers} motoristas e ${extras} registros de manutenção/documentos removidos`,
       );
     } catch (error) {
       toast.error(errorMessage(error));
@@ -464,7 +473,7 @@ export default function SettingsPage() {
               <SectionHeading icon={Users} hint={`${members.length} integrantes`}>
                 Equipe &amp; permissões
               </SectionHeading>
-              {canManage ? (
+              {canManageMembers ? (
                 <form onSubmit={invite} className="mt-4 flex flex-wrap items-end gap-3">
                   <div className="min-w-56 flex-1">
                     <Label htmlFor="invite-email">Adicionar integrante</Label>
@@ -506,7 +515,12 @@ export default function SettingsPage() {
                     Os papéis definem quem edita cadastros, gerencia a equipe e vê dados financeiros.
                   </p>
                 </form>
-              ) : null}
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Somente o proprietário da empresa adiciona integrantes ou altera papéis — assim
+                  nenhum administrador pode conceder acesso de proprietário por conta própria.
+                </p>
+              )}
 
               <div className="mt-4 overflow-hidden rounded-lg border border-border/70">
                 <Table>
@@ -515,7 +529,7 @@ export default function SettingsPage() {
                       <TableHead>Integrante</TableHead>
                       <TableHead>Papel</TableHead>
                       <TableHead>Entrou em</TableHead>
-                      {canManage ? <TableHead className="w-16" /> : null}
+                      {canManageMembers ? <TableHead className="w-16" /> : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -532,7 +546,7 @@ export default function SettingsPage() {
                             <span className="block text-xs text-muted-foreground">{member.email}</span>
                           </TableCell>
                           <TableCell>
-                            {isOwner || isSelf || !canManage ? (
+                            {isOwner || isSelf || !canManageMembers ? (
                               <Stamp tone={isOwner ? "info" : "neutral"} rotate={false}>
                                 {labelFrom(ORG_ROLE_LABELS, member.role)}
                               </Stamp>
@@ -557,7 +571,7 @@ export default function SettingsPage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(member.joinedAt)}
                           </TableCell>
-                          {canManage ? (
+                          {canManageMembers ? (
                             <TableCell>
                               {!isOwner && !isSelf ? (
                                 <AlertDialog>

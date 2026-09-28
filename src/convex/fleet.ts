@@ -4,11 +4,13 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   COMPANY_ROLES,
+  COMPENSATION_ROLES,
   DRIVER_STATUSES,
   EXPIRY_WARNING_DAYS,
   FLEET_WRITE_ROLES,
   FUEL_TYPES,
   ORG_ROLES,
+  OWNER_ROLES,
   TEAM_ROLES,
   VEHICLE_STATUSES,
   VEHICLE_TYPES,
@@ -37,9 +39,8 @@ const DAY = 24 * 60 * 60 * 1000;
 /*  Shared input validators                                                   */
 /* -------------------------------------------------------------------------- */
 
-const vehicleInput = {
-  unitNumber: v.string(),
-  vehicleType: vehicleTypeValidator,
+const vehicleInput = {    unitNumber: v.string(),
+    vehicleType: vehicleTypeValidator,
   make: v.string(),
   model: v.string(),
   year: v.optional(v.number()),
@@ -197,6 +198,15 @@ async function requireOrg(ctx: QueryCtx | MutationCtx): Promise<OrgContext> {
 
 function requireRole(role: OrgRole, allowed: OrgRole[], message: string) {
   if (!allowed.includes(role)) throw new ConvexError(message);
+}
+
+/**
+ * Compensation is payroll data. Only the roles that actually run the numbers
+ * get to read it — a driver or a dispatcher must not see what a colleague
+ * earns (LGPD: dado pessoal sensível no contexto trabalhista).
+ */
+function canSeeCompensation(role: OrgRole) {
+  return COMPENSATION_ROLES.includes(role);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1350,7 +1360,26 @@ export const deleteVehicle = mutation({
       throw new ConvexError("Esse veículo não está no seu registro.");
     }
 
+    // Cascade: service records and documents belong to the vehicle. Leaving them
+    // behind kept personal data (costs, vendors, notes, tax amounts) alive after
+    // the user asked for the vehicle to be gone — and made "clear my data" a lie.
+    const maintenanceRows = await ctx.db
+      .query("maintenanceRecords")
+      .withIndex("by_org_vehicle", (q) =>
+        q.eq("orgId", context.orgId).eq("vehicleId", vehicle._id),
+      )
+      .take(500);
+    const documentRows = await ctx.db
+      .query("vehicleDocuments")
+      .withIndex("by_org_vehicle", (q) =>
+        q.eq("orgId", context.orgId).eq("vehicleId", vehicle._id),
+      )
+      .take(500);
+
+    for (const row of maintenanceRows) await ctx.db.delete(row._id);
+    for (const row of documentRows) await ctx.db.delete(row._id);
     await ctx.db.delete(vehicle._id);
+
     await logActivity(ctx, {
       orgId: context.orgId,
       userId: context.userId,
@@ -1359,7 +1388,7 @@ export const deleteVehicle = mutation({
       entity: "vehicle",
       entityId: vehicle._id as string,
       entityLabel: `Unidade ${vehicle.unitNumber}`,
-      summary: `Removeu a unidade ${vehicle.unitNumber} (${vehicle.make} ${vehicle.model}) do registro.`,
+      summary: `Removeu a unidade ${vehicle.unitNumber} (${vehicle.make} ${vehicle.model}) do registro, com ${maintenanceRows.length} manutenção(ões) e ${documentRows.length} documento(s).`,
     });
     return { ok: true };
   },
@@ -1409,7 +1438,8 @@ export const listDrivers = query({
         hireDate: driver.hireDate ?? null,
         status: driver.status,
         compensationModel: driver.compensationModel,
-        rate: driver.rate ?? null,
+        // Payroll data: only the roles that run the numbers get the figure.
+        rate: canSeeCompensation(context.role) ? (driver.rate ?? null) : null,
         depot: driver.depot ?? null,
         notes: driver.notes ?? null,
         vehicleUnit: assignment?.unitNumber ?? null,
@@ -1478,7 +1508,7 @@ export const driverDetail = query({
         hireDate: driver.hireDate ?? null,
         status: driver.status,
         compensationModel: driver.compensationModel,
-        rate: driver.rate ?? null,
+        rate: canSeeCompensation(context.role) ? (driver.rate ?? null) : null,
         emergencyContactName: driver.emergencyContactName ?? null,
         emergencyContactPhone: driver.emergencyContactPhone ?? null,
         depot: driver.depot ?? null,
@@ -1544,23 +1574,31 @@ export const createDriver = mutation({
 
     if (args.assignedVehicleId) {
       const vehicle = await ctx.db.get(args.assignedVehicleId);
-      if (vehicle && vehicle.orgId === context.orgId) {
-        await ctx.db.patch(vehicle._id, {
-          assignedDriverId: driverId,
-          status: vehicle.status === "available" ? "assigned" : vehicle.status,
-          updatedAt: now,
-        });
-        await logActivity(ctx, {
-          orgId: context.orgId,
-          userId: context.userId,
-          actorName: context.actorName,
-          action: "assign",
-          entity: "vehicle",
-          entityId: vehicle._id as string,
-          entityLabel: `Unidade ${vehicle.unitNumber}`,
-          summary: `${clean.firstName} ${clean.lastName} vinculado à unidade ${vehicle.unitNumber}.`,
-        });
+      if (!vehicle || vehicle.orgId !== context.orgId) {
+        throw new ConvexError("Esse veículo não está no seu registro.");
       }
+      // Silently stealing a unit that another driver is running would make the
+      // register disagree with the yard. Fail loudly instead.
+      if (vehicle.assignedDriverId) {
+        throw new ConvexError(
+          `A unidade ${vehicle.unitNumber} já está vinculada a outro motorista. Libere-a antes de vinculá-la a ${clean.firstName} ${clean.lastName}.`,
+        );
+      }
+      await ctx.db.patch(vehicle._id, {
+        assignedDriverId: driverId,
+        status: vehicle.status === "available" ? "assigned" : vehicle.status,
+        updatedAt: now,
+      });
+      await logActivity(ctx, {
+        orgId: context.orgId,
+        userId: context.userId,
+        actorName: context.actorName,
+        action: "assign",
+        entity: "vehicle",
+        entityId: vehicle._id as string,
+        entityLabel: `Unidade ${vehicle.unitNumber}`,
+        summary: `${clean.firstName} ${clean.lastName} vinculado à unidade ${vehicle.unitNumber}.`,
+      });
     }
 
     await logActivity(ctx, {

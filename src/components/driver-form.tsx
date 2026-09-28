@@ -164,7 +164,9 @@ export function DriverFormDialog({
     : (vehiclesQuery?.rows ?? []).map((row) => ({
         id: row.id as string,
         label: `Unidade ${row.unitNumber} · ${row.make} ${row.model}`,
-        taken: Boolean(row.assignedDriver),
+        // Uma unidade ocupada por outro motorista não pode ser escolhida: o
+        // servidor recusa a vinculação, então nem oferecemos a opção.
+        taken: Boolean(row.assignedDriver) && row.assignedDriver?.id !== driver?.id,
       }));
 
   const [values, setValues] = useState<Values>(() =>
@@ -364,7 +366,11 @@ export function DriverFormDialog({
                     <SelectContent>
                       <SelectItem value="none">Sem unidade vinculada</SelectItem>
                       {options.map((vehicle) => (
-                        <SelectItem key={vehicle.id} value={vehicle.id}>
+                        <SelectItem
+                          key={vehicle.id}
+                          value={vehicle.id}
+                          disabled={vehicle.taken}
+                        >
                           {vehicle.label}
                           {vehicle.taken ? " (já tem motorista)" : ""}
                         </SelectItem>
