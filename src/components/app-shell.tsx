@@ -125,7 +125,7 @@ function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
   const [term, setTerm] = useState("");
   const [open, setOpen] = useState(false);
   const deferred = useDeferredValue(term);
-  const results = useQuery(api.fleet.search, { term: deferred });
+  const results = useQuery(api.logbook.search, { term: deferred });
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
 

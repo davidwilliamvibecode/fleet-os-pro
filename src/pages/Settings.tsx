@@ -120,12 +120,11 @@ const TAB_VALUES = ["empresa", "equipe", "logbook", "dados"] as const;
 
 export default function SettingsPage() {
   const { workspace, org, role, members } = useWorkspace();
-  const updateOrg = useMutation(api.fleet.updateOrganization);
-  const addMember = useMutation(api.fleet.addMember);
-  const updateRole = useMutation(api.fleet.updateMemberRole);
-  const removeMemberM = useMutation(api.fleet.removeMember);
+  const updateOrg = useMutation(api.team.updateOrganization);
+  const addMember = useMutation(api.team.addMember);
+  const updateRole = useMutation(api.team.updateMemberRole);
+  const removeMemberM = useMutation(api.team.removeMember);
   const clearData = useMutation(api.fleet.clearFleetData);
-  const purgeExtras = useMutation(api.maintenance.purgeFleetExtras);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") ?? "empresa";
@@ -239,11 +238,9 @@ export default function SettingsPage() {
     setClearing(true);
     try {
       const result = await clearData({});
-      // `clearFleetData` limpa o cadastro (veículos, motoristas e livro), mas não
-      // as manutenções e os documentos — sem esta segunda chamada a tela prometia
-      // apagar tudo e deixava histórico de serviço, custos e impostos no banco.
-      const purged = await purgeExtras({});
-      const extras = purged.maintenance + purged.documents;
+      // O servidor agora apaga também manutenções e documentos (cascata), então
+      // este resumo corresponde ao que realmente saiu do banco.
+      const extras = result.maintenance + result.documents;
       toast.success(
         `${result.vehicles} veículos, ${result.drivers} motoristas e ${extras} registros de manutenção/documentos removidos`,
       );

@@ -45,7 +45,7 @@ export function LogbookPanel() {
   const [entity, setEntity] = useState("all");
   const [limit, setLimit] = useState(60);
 
-  const entries = useQuery(api.fleet.activityFeed, {
+  const entries = useQuery(api.logbook.activityFeed, {
     entity: entity === "all" ? undefined : (entity as ActivityEntity),
     limit,
   });

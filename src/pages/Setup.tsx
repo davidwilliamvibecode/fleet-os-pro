@@ -56,7 +56,7 @@ const TIME_ZONES = [
 ];
 
 function CreateCompanyForm() {
-  const createOrg = useMutation(api.fleet.createOrganization);
+  const createOrg = useMutation(api.team.createOrganization);
   const navigate = useNavigate();
   const [values, setValues] = useState({
     name: "",
@@ -208,7 +208,7 @@ function CreateCompanyForm() {
 function SetupChecklist() {
   const { org, role } = useWorkspace();
   const progress = useQuery(api.fleet.setupProgress);
-  const completeSetup = useMutation(api.fleet.completeSetup);
+  const completeSetup = useMutation(api.team.completeSetup);
   const seedDemo = useMutation(api.fleet.seedDemoFleet);
   const navigate = useNavigate();
   const [vehicleOpen, setVehicleOpen] = useState(false);

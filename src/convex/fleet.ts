@@ -5,30 +5,22 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import {
   COMPANY_ROLES,
   COMPENSATION_ROLES,
-  DRIVER_STATUSES,
   EXPIRY_WARNING_DAYS,
   FLEET_WRITE_ROLES,
   FUEL_TYPES,
   ORG_ROLES,
-  OWNER_ROLES,
-  TEAM_ROLES,
   VEHICLE_STATUSES,
   VEHICLE_TYPES,
   type OrgRole,
 } from "./constants";
 import {
-  activityActionValidator,
-  activityEntityValidator,
   compensationValidator,
-  distanceUnitValidator,
   driverStatusValidator,
   fuelTypeValidator,
-  orgRoleValidator,
   ownershipValidator,
   transmissionValidator,
   vehicleStatusValidator,
   vehicleTypeValidator,
-  volumeUnitValidator,
   type ActivityAction,
   type ActivityEntity,
 } from "./schema";
@@ -1285,385 +1277,6 @@ export const deleteVehicle = mutation({
 });
 
 /* -------------------------------------------------------------------------- */
-/*  Company + team                                                            */
-/* -------------------------------------------------------------------------- */
-
-export const createOrganization = mutation({
-  args: {
-    name: v.string(),
-    currency: v.string(),
-    distanceUnit: distanceUnitValidator,
-    volumeUnit: volumeUnitValidator,
-    timeZone: v.string(),
-    legalName: v.optional(v.string()),
-    contactEmail: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    addressLine: v.optional(v.string()),
-    city: v.optional(v.string()),
-    region: v.optional(v.string()),
-    country: v.optional(v.string()),
-    taxId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const user = await signedInUser(ctx);
-    if (!user) throw new ConvexError("Sua sessão expirou. Entre novamente.");
-
-    const existing = await ctx.db
-      .query("memberships")
-      .withIndex("by_user", (q) => q.eq("userId", user.userId))
-      .first();
-    if (existing) throw new ConvexError("Você já pertence a uma empresa no Fleet Command.");
-
-    const name = args.name.trim();
-    if (!name) throw new ConvexError("O nome da empresa é obrigatório.");
-    if (!/^[A-Z]{3}$/.test(args.currency.toUpperCase())) {
-      throw new ConvexError("Use um código de moeda com 3 letras, como BRL ou USD.");
-    }
-
-    const now = Date.now();
-    const orgId = await ctx.db.insert("organizations", {
-      name,
-      legalName: args.legalName?.trim() || undefined,
-      contactEmail: args.contactEmail?.trim() || user.email || undefined,
-      phone: args.phone?.trim() || undefined,
-      addressLine: args.addressLine?.trim() || undefined,
-      city: args.city?.trim() || undefined,
-      region: args.region?.trim() || undefined,
-      country: args.country?.trim() || undefined,
-      taxId: args.taxId?.trim() || undefined,
-      currency: args.currency.toUpperCase(),
-      distanceUnit: args.distanceUnit,
-      volumeUnit: args.volumeUnit,
-      timeZone: args.timeZone,
-      plan: "owner",
-      createdBy: user.userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await ctx.db.insert("memberships", {
-      orgId,
-      userId: user.userId,
-      role: "owner",
-      createdAt: now,
-    });
-
-    await logActivity(ctx, {
-      orgId,
-      userId: user.userId,
-      actorName: user.name,
-      action: "create",
-      entity: "company",
-      entityId: orgId as string,
-      entityLabel: name,
-      summary: `Created the company workspace for ${name}.`,
-    });
-
-    return { orgId };
-  },
-});
-
-export const updateOrganization = mutation({
-  args: {
-    name: v.string(),
-    legalName: v.optional(v.string()),
-    contactEmail: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    addressLine: v.optional(v.string()),
-    city: v.optional(v.string()),
-    region: v.optional(v.string()),
-    country: v.optional(v.string()),
-    taxId: v.optional(v.string()),
-    currency: v.string(),
-    distanceUnit: distanceUnitValidator,
-    volumeUnit: volumeUnitValidator,
-    timeZone: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Only an owner or admin can change company settings.");
-
-    const name = args.name.trim();
-    if (!name) throw new ConvexError("O nome da empresa é obrigatório.");
-    if (!/^[A-Z]{3}$/.test(args.currency.toUpperCase())) {
-      throw new ConvexError("Use um código de moeda com 3 letras, como BRL ou USD.");
-    }
-
-    await ctx.db.patch(context.orgId, {
-      name,
-      legalName: args.legalName?.trim() || undefined,
-      contactEmail: args.contactEmail?.trim() || undefined,
-      phone: args.phone?.trim() || undefined,
-      addressLine: args.addressLine?.trim() || undefined,
-      city: args.city?.trim() || undefined,
-      region: args.region?.trim() || undefined,
-      country: args.country?.trim() || undefined,
-      taxId: args.taxId?.trim() || undefined,
-      currency: args.currency.toUpperCase(),
-      distanceUnit: args.distanceUnit,
-      volumeUnit: args.volumeUnit,
-      timeZone: args.timeZone,
-      updatedAt: Date.now(),
-    });
-
-    await logActivity(ctx, {
-      orgId: context.orgId,
-      userId: context.userId,
-      actorName: context.actorName,
-      action: "update",
-      entity: "company",
-      entityId: context.orgId as string,
-      entityLabel: name,
-      summary: "Atualizou o perfil da empresa e as configurações de medição.",
-    });
-
-    return { ok: true };
-  },
-});
-
-export const completeSetup = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const context = await requireOrg(ctx);
-    await ctx.db.patch(context.orgId, { setupCompletedAt: Date.now(), updatedAt: Date.now() });
-    await logActivity(ctx, {
-      orgId: context.orgId,
-      userId: context.userId,
-      actorName: context.actorName,
-      action: "update",
-      entity: "workspace",
-      entityLabel: "Setup",
-      summary: "Concluiu a lista de configuração do Fleet Command.",
-    });
-    return { ok: true };
-  },
-});
-
-export const addMember = mutation({
-  args: { email: v.string(), role: orgRoleValidator },
-  handler: async (ctx, args) => {
-    const context = await requireOrg(ctx);
-    requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode convidar integrantes.");
-    // Handing out owner access is an owner-only action.
-    if (args.role === "owner") {
-      requireRole(context.role, OWNER_ROLES, "Somente o proprietário pode conceder acesso de proprietário.");
-    }
-
-    const email = args.email.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      throw new ConvexError("Informe um e-mail válido.");
-    }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", email))
-      .first();
-    // Deliberately generic: the caller must not learn whether an address is
-    // registered here (that would be an e-mail enumeration oracle).
-    const cannotAdd = new ConvexError(
-      "Não foi possível adicionar esse e-mail. A pessoa precisa ter entrado no Fleet Command pelo menos uma vez com esse endereço.",
-    );
-    if (!user) throw cannotAdd;
-
-    // One company per user: `orgContext` resolves the membership with
-    // `.first()`, so a second membership would silently decide which tenant the
-    // account sees — and grant unsolicited access to somebody else's data.
-    const membership = await ctx.db
-      .query("memberships")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .first();
-    if (membership?.orgId === context.orgId) {
-      throw new ConvexError("Essa pessoa já está na sua equipe.");
-    }
-    if (membership) {
-      throw new ConvexError(
-        "Essa pessoa já pertence a uma empresa no Fleet Command. Cada conta acessa uma única empresa.",
-      );
-    }
-
-    await ctx.db.insert("memberships", {
-      orgId: context.orgId,
-      userId: user._id,
-      role: args.role,
-      createdAt: Date.now(),
-    });
-
-    await logActivity(ctx, {
-      orgId: context.orgId,
-      userId: context.userId,
-      actorName: context.actorName,
-      action: "member",
-      entity: "member",
-      entityId: user._id as string,
-      entityLabel: email,
-      summary: `Added ${email} as ${args.role.replace(/_/g, " ")}.`,
-    });
-
-    return { ok: true };
-  },
-});
-
-export const updateMemberRole = mutation({
-  args: { membershipId: v.id("memberships"), role: orgRoleValidator },
-  handler: async (ctx, args) => {
-    const context = await requireOrg(ctx);
-    requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode alterar papéis.");
-    // Promoting somebody to owner is owner-only, exactly like inviting them.
-    if (args.role === "owner") {
-      requireRole(context.role, OWNER_ROLES, "Somente o proprietário pode promover alguém a proprietário.");
-    }
-
-    const membership = await ctx.db.get(args.membershipId);
-    if (!membership || membership.orgId !== context.orgId) {
-      throw new ConvexError("Esse integrante não faz parte desta empresa.");
-    }
-    if (membership.userId === context.userId) {
-      throw new ConvexError("Você não pode alterar seu próprio papel.");
-    }
-    if (membership.role === "owner") {
-      throw new ConvexError("O papel do proprietário da empresa não pode ser alterado.");
-    }
-    if (membership.role === "admin" && context.role !== "owner") {
-      throw new ConvexError("Somente o proprietário pode alterar o papel de um administrador.");
-    }
-
-    await ctx.db.patch(membership._id, { role: args.role });
-    await logActivity(ctx, {
-      orgId: context.orgId,
-      userId: context.userId,
-      actorName: context.actorName,
-      action: "member",
-      entity: "member",
-      entityId: membership.userId as string,
-      entityLabel: args.role.replace(/_/g, " "),
-      summary: `Changed a team member's role to ${args.role.replace(/_/g, " ")}.`,
-    });
-    return { ok: true };
-  },
-});
-
-export const removeMember = mutation({
-  args: { membershipId: v.id("memberships") },
-  handler: async (ctx, args) => {
-    const context = await requireOrg(ctx);
-    requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode remover integrantes.");
-
-    const membership = await ctx.db.get(args.membershipId);
-    if (!membership || membership.orgId !== context.orgId) {
-      throw new ConvexError("Esse integrante não faz parte desta empresa.");
-    }
-    if (membership.role === "owner") throw new ConvexError("O proprietário da empresa não pode ser removido.");
-    if (membership.role === "admin" && context.role !== "owner") {
-      throw new ConvexError("Somente o proprietário pode remover um administrador.");
-    }
-
-    const user = await ctx.db.get(membership.userId);
-    await ctx.db.delete(membership._id);
-    await logActivity(ctx, {
-      orgId: context.orgId,
-      userId: context.userId,
-      actorName: context.actorName,
-      action: "member",
-      entity: "member",
-      entityId: membership.userId as string,
-      entityLabel: user?.email ?? "Team member",
-      summary: `Removed ${user?.name ?? user?.email ?? "a team member"} from the workspace.`,
-    });
-    return { ok: true };
-  },
-});
-
-/* -------------------------------------------------------------------------- */
-/*  Log book + search                                                         */
-/* -------------------------------------------------------------------------- */
-
-export const activityFeed = query({
-  args: {
-    limit: v.optional(v.number()),
-    entity: v.optional(activityEntityValidator),
-  },
-  handler: async (ctx, args) => {
-    const context = await orgContext(ctx);
-    if (!context) return [];
-
-    const rows = args.entity
-      ? await ctx.db
-          .query("activityLog")
-          .withIndex("by_org_entity", (q) =>
-            q.eq("orgId", context.orgId).eq("entity", args.entity!),
-          )
-          .order("desc")
-          .take(Math.min(args.limit ?? 60, 200))
-      : await ctx.db
-          .query("activityLog")
-          .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-          .order("desc")
-          .take(Math.min(args.limit ?? 60, 200));
-
-    return rows.map((row) => ({
-      id: row._id,
-      action: row.action as ActivityAction,
-      entity: row.entity as ActivityEntity,
-      entityId: row.entityId ?? null,
-      entityLabel: row.entityLabel,
-      summary: row.summary,
-      actorName: row.actorName,
-      changes: row.changes ?? [],
-      createdAt: row.createdAt,
-    }));
-  },
-});
-
-export const search = query({
-  args: { term: v.string() },
-  handler: async (ctx, args) => {
-    const context = await orgContext(ctx);
-    if (!context) return { vehicles: [], drivers: [] };
-    const term = args.term.trim().toLowerCase();
-    if (term.length < 2) return { vehicles: [], drivers: [] };
-
-    const vehicles = await ctx.db
-      .query("vehicles")
-      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(400);
-    const drivers = await ctx.db
-      .query("drivers")
-      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(400);
-
-    const match = (values: (string | null | undefined)[]) =>
-      values.filter(Boolean).some((value) => String(value).toLowerCase().includes(term));
-
-    return {
-      vehicles: vehicles
-        .filter((vehicle) => match([vehicle.unitNumber, vehicle.plate, vehicle.vin, vehicle.make, vehicle.model]))
-        .slice(0, 6)
-        .map((vehicle) => ({
-          id: vehicle._id,
-          title: `Unit ${vehicle.unitNumber}`,
-          subtitle: `${vehicle.make} ${vehicle.model}`,
-          status: vehicle.status as string,
-        })),
-      drivers: drivers
-        .filter((driver) =>
-          match([
-            `${driver.firstName} ${driver.lastName}`,
-            driver.phone,
-            driver.email,
-            driver.licenseNumber,
-          ]),
-        )
-        .slice(0, 6)
-        .map((driver) => ({
-          id: driver._id,
-          title: `${driver.firstName} ${driver.lastName}`,
-          subtitle: driver.licenseNumber,
-          status: driver.status as string,
-        })),
-    };
-  },
-});
-
-/* -------------------------------------------------------------------------- */
 /*  Demo data                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -1820,8 +1433,9 @@ export const seedDemoFleet = mutation({
       actorName: context.actorName,
       action: "seed",
       entity: "workspace",
-      entityLabel: "Sample fleet",
-      summary: `Loaded sample data: ${DEMO_VEHICLES.length} vehicles and ${DEMO_DRIVERS.length} drivers (fictional).`,
+      entityLabel: "Frota de exemplo",
+      summary: `Carregou dados de exemplo: ${DEMO_VEHICLES.length} veículos e ${DEMO_DRIVERS.length} motoristas (fictícios).`,
+      // Seed data is fictional: no real person or plate ever lands in the register.
     });
 
     return { vehicles: DEMO_VEHICLES.length, drivers: DEMO_DRIVERS.length };
@@ -1832,7 +1446,7 @@ export const clearFleetData = mutation({
   args: {},
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Only an owner or admin can clear fleet data.");
+    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode limpar os dados da frota.");
 
     const vehicles = await ctx.db
       .query("vehicles")
@@ -1846,10 +1460,23 @@ export const clearFleetData = mutation({
       .query("activityLog")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(500);
+    // Child rows used to survive this wipe: service history, parts, costs,
+    // vendors and tax amounts stayed in the database after the user asked for
+    // everything to be cleared — which made the copy on the data screen a lie.
+    const maintenance = await ctx.db
+      .query("maintenanceRecords")
+      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
+      .take(500);
+    const documents = await ctx.db
+      .query("vehicleDocuments")
+      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
+      .take(500);
 
     for (const vehicle of vehicles) await ctx.db.delete(vehicle._id);
     for (const driver of drivers) await ctx.db.delete(driver._id);
     for (const row of activity) await ctx.db.delete(row._id);
+    for (const row of maintenance) await ctx.db.delete(row._id);
+    for (const row of documents) await ctx.db.delete(row._id);
 
     await logActivity(ctx, {
       orgId: context.orgId,
@@ -1857,11 +1484,16 @@ export const clearFleetData = mutation({
       actorName: context.actorName,
       action: "delete",
       entity: "workspace",
-      entityLabel: "Fleet register",
-      summary: `Cleared the register — removed ${vehicles.length} vehicles and ${drivers.length} drivers.`,
+      entityLabel: "Cadastro da frota",
+      summary: `Limpou o cadastro — removeu ${vehicles.length} veículo(s), ${drivers.length} motorista(s), ${maintenance.length} manutenção(ões) e ${documents.length} documento(s).`,
     });
 
-    return { vehicles: vehicles.length, drivers: drivers.length };
+    return {
+      vehicles: vehicles.length,
+      drivers: drivers.length,
+      maintenance: maintenance.length,
+      documents: documents.length,
+    };
   },
 });
 
