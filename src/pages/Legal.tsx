@@ -124,7 +124,7 @@ const SECTIONS_PRIVACY: Section[] = [
     title: "Retenção e exclusão",
     body: [
       "Os dados permanecem enquanto a empresa usar o serviço. A exclusão de veículos, motoristas e documentos remove os registros associados de forma definitiva.",
-      "Contas de convidados que nunca se vinculam a uma empresa são removidas automaticamente após 7 dias de inatividade.",
+      "Contas de convidados criadas há mais de 7 dias que nunca se vinculam a uma empresa são removidas automaticamente, junto com suas sessões.",
       "A empresa pode solicitar a exclusão completa do seu espaço a qualquer momento; a operação apaga todos os dados e é irreversível.",
     ],
   },
