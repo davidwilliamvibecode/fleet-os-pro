@@ -107,6 +107,8 @@ export const activityActionValidator = v.union(
   v.literal("status_change"),
   v.literal("seed"),
   v.literal("member"),
+  // O Termo de Uso promete backup, então a saída de dados fica auditada.
+  v.literal("export"),
 );
 export type ActivityAction = Infer<typeof activityActionValidator>;
 
@@ -354,6 +356,24 @@ const schema = defineSchema(
       .index("by_org", ["orgId"])
       .index("by_org_vehicle", ["orgId", "vehicleId"])
       .index("by_org_status", ["orgId", "status"]),
+
+    /**
+     * Erros de runtime reportados pelo app (error tracking interno).
+     *
+     * Sem isso, uma falha em produção só aparece quando o cliente reclama.
+     * Guardamos o essencial — sem dados pessoais dos titulares — e os papéis
+     * autorizados da empresa conseguem ver a lista em Configurações.
+     */
+    errorReports: defineTable({
+      orgId: v.optional(v.id("organizations")),
+      source: v.string(),
+      message: v.string(),
+      stack: v.optional(v.string()),
+      context: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_org", ["orgId"])
+      .index("by_created", ["createdAt"]),
   },
   {
     // Validação ligada: toda escrita passa a ser conferida contra este schema,

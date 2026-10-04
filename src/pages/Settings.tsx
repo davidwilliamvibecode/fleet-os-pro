@@ -1,6 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import { AppShell } from "@/components/app-shell";
 import { LogbookPanel } from "@/components/logbook-panel";
+import { DiagnosticsPanel, ExportPanel } from "@/components/data-tools";
 import {
   EmptyNote,
   LoadingNote,
@@ -673,6 +674,12 @@ export default function SettingsPage() {
                     Usuários de outras empresas não conseguem consultar, listar ou adivinhar os seus
                     dados — cada consulta e alteração revalida a associação antes de retornar algo.
                   </p>
+                </div>
+                <div className="mt-6 space-y-6 border-t border-dashed border-border/70 pt-6">
+                  <ExportPanel />
+                  <div className="border-t border-dashed border-border/70 pt-6">
+                    <DiagnosticsPanel />
+                  </div>
                 </div>
               </PaperPanel>
             ) : (

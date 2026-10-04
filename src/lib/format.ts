@@ -243,6 +243,7 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   assign: "Vinculou",
   status_change: "Status alterado em",
   seed: "Carregou",
+  export: "Exportou",
   member: "Equipe —",
 };
 

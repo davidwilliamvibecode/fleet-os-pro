@@ -136,6 +136,15 @@ const SECTIONS_PRIVACY: Section[] = [
     ],
   },
   {
+    title: "Controladora e encarregado",
+    body: [
+      "► Preencha os dados abaixo antes de usar esta política comercialmente. O art. 41 da LGPD exige um encarregado (DPO) nomeado, com canal de contato publicado.",
+      "Controladora: [RAZÃO SOCIAL DA EMPRESA], inscrita no CNPJ sob nº [CNPJ], com sede na [ENDEREÇO COMPLETO]. É a empresa que contrata o Fleet Command e decide sobre os dados dos seus motoristas.",
+      "Encarregado pelo tratamento de dados (DPO): [NOME DO ENCARREGADO] — [E-MAIL DO DPO] — [TELEFONE/ENDEREÇO].",
+      "Operador: o Fleet Command, que trata os dados estritamente conforme as instruções da controladora e para executar o serviço contratado.",
+    ],
+  },
+  {
     title: "Contato",
     body: [
       "Dúvidas sobre esta política, solicitações de exclusão ou relatos de incidentes podem ser feitos pelo e-mail de contato informado no rodapé do sistema ou pelo canal de suporte da plataforma.",

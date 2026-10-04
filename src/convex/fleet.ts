@@ -94,6 +94,7 @@ type OrgContext = {
   userId: Id<"users">;
   actorName: string;
   orgId: Id<"organizations">;
+  orgName: string;
   role: OrgRole;
 };
 
@@ -141,6 +142,7 @@ export async function requireOrg(ctx: QueryCtx | MutationCtx): Promise<OrgContex
     userId: context.userId,
     actorName: context.actorName,
     orgId: context.orgId,
+    orgName: context.org.name,
     role: context.role,
   };
 }
