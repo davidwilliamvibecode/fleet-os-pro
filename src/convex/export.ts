@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOrg, requireRole, logActivity } from "./fleet";
-import { OWNER_ROLES } from "./constants";
+import { COMPANY_ROLES } from "./constants";
 
 /**
  * Exportação dos dados da empresa (backup em CSV).
@@ -40,7 +40,7 @@ export const buildExport = query({
   args: {},
   handler: async (ctx): Promise<{ files: ExportFile[]; generatedAt: number }> => {
     const org = await requireOrg(ctx);
-    requireRole(org.role, OWNER_ROLES, "Só o proprietário pode exportar os dados da empresa.");
+    requireRole(org.role, COMPANY_ROLES, "Só o proprietário ou administrador pode exportar os dados da empresa.");
 
     const [vehicles, drivers, maintenance, documents, activity] = await Promise.all([
       ctx.db.query("vehicles").withIndex("by_org", (q) => q.eq("orgId", org.orgId)).collect(),
@@ -263,7 +263,7 @@ export const recordExport = mutation({
   },
   handler: async (ctx, args) => {
     const org = await requireOrg(ctx);
-    requireRole(org.role, OWNER_ROLES, "Só o proprietário pode exportar os dados da empresa.");
+    requireRole(org.role, COMPANY_ROLES, "Só o proprietário ou administrador pode exportar os dados da empresa.");
     await logActivity(ctx, {
       orgId: org.orgId,
       userId: org.userId,

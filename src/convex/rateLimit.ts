@@ -45,6 +45,8 @@ export const RATE_LIMITS = {
   seed: { limit: 3, windowMinutes: 60 },
   /** Exportação/limpeza geram histórico e carga; não devem ser automatizadas. */
   bulk: { limit: 10, windowMinutes: 60 },
+  /** Relatório de erro: 1/min em média já cobre qualquer bug humano. */
+  errorReport: { limit: 60, windowMinutes: 10 },
 } satisfies Record<string, RateLimitRule>;
 
 /**

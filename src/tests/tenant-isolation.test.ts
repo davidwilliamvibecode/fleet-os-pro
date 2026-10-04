@@ -54,7 +54,10 @@ async function seedCompany(t: Harness, suffix: "a" | "b") {
   );
   const asUser = t.withIdentity({ subject: userId });
 
-  await asUser.mutation(api.team.createOrganization, companyArgs(`Transportes ${suffix.toUpperCase()}`));
+  const { orgId } = await asUser.mutation(
+    api.team.createOrganization,
+    companyArgs(`Transportes ${suffix.toUpperCase()}`),
+  );
 
   const { driverId } = await asUser.mutation(api.drivers.createDriver, {
     firstName: "Carlos",
@@ -79,7 +82,12 @@ async function seedCompany(t: Harness, suffix: "a" | "b") {
     assignedDriverId: driverId,
   });
 
-  return { asUser, driverId, vehicleId };
+  return { asUser, driverId, vehicleId, orgId };
+}
+
+/** Conta quantos relatórios de erro existem no banco em memória. */
+async function countErrors(t: Harness) {
+  return t.run(async (ctx) => (await ctx.db.query("errorReports").collect()).length);
 }
 
 describe("isolamento entre empresas", () => {
@@ -207,5 +215,64 @@ describe("isolamento entre empresas", () => {
     const anonimo = t;
     expect((await anonimo.query(api.fleet.listVehicles, {})).rows).toEqual([]);
     expect(await anonimo.query(api.fleet.vehicleDetail, { vehicleId: A.vehicleId })).toBeNull();
+  });
+
+  it("administrador da empresa consegue exportar e ver o diagnóstico", async () => {
+    const t = makeHarness();
+    const A = await seedCompany(t, "a");
+
+    // Promove um segundo usuário a admin dentro da mesma empresa.
+    const adminId = await t.run((ctx) =>
+      ctx.db.insert("users", { name: "Ana Admin", email: "admin@empresa-a.com" }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("memberships", {
+        orgId: A.orgId,
+        userId: adminId,
+        role: "admin",
+        createdAt: Date.now(),
+      }),
+    );
+    const admin = t.withIdentity({ subject: adminId });
+
+    // Antes desta correção, `buildExport` exigia owner: a query lançava no
+    // render e derrubava a tela do admin. Agora resolve normalmente.
+    const dados = await admin.query(api.export.buildExport, {});
+    expect(dados.files.some((f) => f.name === "veiculos.csv" && f.rows === 1)).toBe(true);
+    expect(await admin.query(api.errors.listErrors, {})).toEqual([]);
+    await expect(admin.mutation(api.errors.clearErrors, {})).resolves.toEqual({ removed: 0 });
+  });
+
+  it("relatório de erro sem empresa é descartado (não infla a tabela)", async () => {
+    const t = makeHarness();
+    await seedCompany(t, "a");
+
+    // Visitante da landing sem sessão: descartado sem gravar nada.
+    const result = await t.mutation(api.errors.reportError, {
+      source: "window.onerror",
+      message: "algo quebrou numa página pública",
+    });
+    expect(result).toEqual({ ok: false, reason: "no-org" });
+    expect(await countErrors(t)).toBe(0);
+  });
+
+  it("relatório de erro logado fica no diagnóstico da própria empresa", async () => {
+    const t = makeHarness();
+    const A = await seedCompany(t, "a");
+
+    const result = await A.asUser.mutation(api.errors.reportError, {
+      source: "window.onerror",
+      message: "falha ao abrir o painel",
+      stack: "Error: falha\n  at Painel",
+    });
+    expect(result).toEqual({ ok: true });
+
+    const vistos = await A.asUser.query(api.errors.listErrors, {});
+    expect(vistos.length).toBe(1);
+    expect(vistos[0].message).toBe("falha ao abrir o painel");
+
+    // E só a própria empresa vê esse relatório.
+    const B = await seedCompany(t, "b");
+    expect((await B.asUser.query(api.errors.listErrors, {})).length).toBe(0);
   });
 });

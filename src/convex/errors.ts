@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query, type MutationCtx } from "./_generated/server";
-import { requireOrg, requireRole } from "./fleet";
-import { OWNER_ROLES } from "./constants";
+import { mutation, query } from "./_generated/server";
+import { requireOrg, requireRole, orgContext } from "./fleet";
+import { COMPANY_ROLES } from "./constants";
+import { limit } from "./limits";
 
 /**
  * Error tracking interno.
@@ -29,13 +30,22 @@ export const reportError = mutation({
     context: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const trimmedContext = args.context?.slice(0, MAX_CONTEXT);
+    // Sem empresa não há para quem ler esse relatório (não existe painel
+    // global), então descartamos — e isso também fecha a única escrita pública
+    // sem cota do backend: um visitante não consegue inflar a tabela.
+    const org = await orgContext(ctx);
+    if (!org) return { ok: false, reason: "no-org" };
+
+    // Com empresa, vale a mesma contenção das demais escritas: um loop de erro
+    // pode disparar milhares de relatórios e lotar a tabela.
+    await limit(ctx, org.orgId, "errorReport");
+
     await ctx.db.insert("errorReports", {
-      orgId: await currentOrgId(ctx),
+      orgId: org.orgId,
       source: args.source.slice(0, 120),
       message: args.message.slice(0, MAX_MESSAGE),
       stack: args.stack?.slice(0, MAX_STACK),
-      context: trimmedContext,
+      context: args.context?.slice(0, MAX_CONTEXT),
       createdAt: Date.now(),
     });
     return { ok: true };
@@ -50,7 +60,7 @@ export const listErrors = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const org = await requireOrg(ctx);
-    requireRole(org.role, OWNER_ROLES, "Só o proprietário e o administrador veem o diagnóstico.");
+    requireRole(org.role, COMPANY_ROLES, "Só o proprietário e o administrador veem o diagnóstico.");
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
     const errors = await ctx.db
@@ -75,7 +85,7 @@ export const clearErrors = mutation({
   args: {},
   handler: async (ctx) => {
     const org = await requireOrg(ctx);
-    requireRole(org.role, OWNER_ROLES, "Só o proprietário e o administrador limpam o diagnóstico.");
+    requireRole(org.role, COMPANY_ROLES, "Só o proprietário e o administrador limpam o diagnóstico.");
     const errors = await ctx.db
       .query("errorReports")
       .withIndex("by_org", (q) => q.eq("orgId", org.orgId))
@@ -84,17 +94,3 @@ export const clearErrors = mutation({
     return { removed: errors.length };
   },
 });
-
-/**
- * O erro pode acontecer antes do login ou fora de uma empresa (visitante na
- * landing), então a organização é opcional. Quando há sessão, associamos o
- * erro à empresa para aparecer no diagnóstico certo.
- */
-async function currentOrgId(ctx: MutationCtx) {
-  try {
-    const org = await requireOrg(ctx);
-    return org.orgId;
-  } catch {
-    return undefined;
-  }
-}

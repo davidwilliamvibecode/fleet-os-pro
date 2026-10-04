@@ -24,7 +24,8 @@ que quebrou, erro em produção ou pedido de exclusão de dados (LGPD).
    ```bash
    bunx convex dev --once   # confirma que o backend sobe e o schema está íntegro
    bunx tsc -b --noEmit     # confirma que o frontend está consistente
-   bun run test             # confirma as regras de segurança (10 testes)
+   bun run test             # confirma as regras de segurança (24 testes: autorização,
+                            # cotas de uso e isolamento entre empresas)
    ```
 
 **Se o backend responde e o frontend falha:** o problema é no código do
@@ -82,6 +83,8 @@ incidente, o caminho é:
 | Exportação de dados pelo cliente | `src/convex/export.ts` |
 | Captura de erros | `src/convex/errors.ts` + hook no cliente |
 | Testes das regras de autorização | `src/convex/access.test.ts` (`bun run test`) |
+| Teste de isolamento entre empresas (executa as functions reais) | `src/tests/tenant-isolation.test.ts` |
+| Testes das cotas de uso | `src/convex/rateLimit.test.ts` |
 
 ## 5. O que NÃO temos (honesto)
 
