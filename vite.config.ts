@@ -96,9 +96,9 @@ export default defineConfig({
     // Bind to all interfaces so the browser runtime's server-ready event fires.
     host: true,
     port: 5173,
-    // Keep HMR on, but disable full-screen error overlay
-    hmr: {
-      overlay: false,
-    },
+    // HMR desligado: o Freebuff gerencia a recompilação e um objeto `hmr`
+    // aqui sobrescreveria essa configuração, causando recarregamentos no meio
+    // da navegação do preview.
+    hmr: false,
   },
 });
