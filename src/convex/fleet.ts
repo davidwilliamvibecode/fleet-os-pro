@@ -400,14 +400,15 @@ async function vehicleChanges(
   ctx: MutationCtx,
   before: Record<string, unknown>,
   after: CleanVehicle,
+  orgId: Id<"organizations">,
 ) {
   const changes: { field: string; from?: string; to?: string }[] = [];
   for (const { key, label } of VEHICLE_TRACKED_FIELDS) {
     const from = before[key as string];
     const to = after[key];
     if (key === "assignedDriverId") {
-      const fromName = from ? await driverName(ctx, from as Id<"drivers">) : undefined;
-      const toName = to ? await driverName(ctx, to as Id<"drivers">) : undefined;
+      const fromName = from ? await driverName(ctx, from as Id<"drivers">, orgId) : undefined;
+      const toName = to ? await driverName(ctx, to as Id<"drivers">, orgId) : undefined;
       if (fromName !== toName) changes.push({ field: label, from: fromName, to: toName });
       continue;
     }
@@ -432,9 +433,20 @@ export function diffFields<T>(
   return changes;
 }
 
-async function driverName(ctx: MutationCtx | QueryCtx, driverId: Id<"drivers">) {
+/**
+ * Nome do motorista para os registros de auditoria.
+ *
+ * Recebe a empresa de quem está asking e reconfirma: se a referência vier
+ * corrompida, vira "Unassigned" em vez de gravar o nome de um motorista de
+ * outra empresa no histórico de quem fez a alteração.
+ */
+async function driverName(
+  ctx: MutationCtx | QueryCtx,
+  driverId: Id<"drivers">,
+  orgId: Id<"organizations">,
+) {
   const driver = await ctx.db.get(driverId);
-  if (!driver) return "Unassigned";
+  if (!driver || driver.orgId !== orgId) return "Unassigned";
   return `${driver.firstName} ${driver.lastName}`;
 }
 
@@ -944,14 +956,17 @@ export const listVehicles = query({
     const driverIds = Array.from(
       new Set(vehicles.map((v) => v.assignedDriverId).filter((id): id is Id<"drivers"> => Boolean(id))),
     );
+    // Mesmo cuidado aqui: só entra no mapa o motorista da própria empresa.
     const drivers = await Promise.all(driverIds.map((id) => ctx.db.get(id)));
+    const ownDrivers = drivers.filter(
+      (driver): driver is NonNullable<typeof driver> =>
+        driver !== null && driver.orgId === context.orgId,
+    );
     const driverMap = new Map(
-      drivers
-        .filter((driver): driver is NonNullable<typeof driver> => Boolean(driver))
-        .map((driver) => [
-          driver._id as string,
-          { id: driver._id, name: `${driver.firstName} ${driver.lastName}` },
-        ]),
+      ownDrivers.map((driver) => [
+        driver._id as string,
+        { id: driver._id, name: `${driver.firstName} ${driver.lastName}` },
+      ]),
     );
 
     const term = (args.search ?? "").trim().toLowerCase();
@@ -988,7 +1003,11 @@ export const vehicleDetail = query({
     const vehicle = await ctx.db.get(args.vehicleId);
     if (!vehicle || vehicle.orgId !== context.orgId) return null;
 
-    const driver = vehicle.assignedDriverId ? await ctx.db.get(vehicle.assignedDriverId) : null;
+    // O veículo já passou pela checagem de orgId acima, mas o motorista vinculado
+    // é buscado por id: reconferimos a empresa para que uma referência corrompida
+    // (ou um bug de escrita) nunca exponha prontuário de outra empresa.
+    const linked = vehicle.assignedDriverId ? await ctx.db.get(vehicle.assignedDriverId) : null;
+    const driver = linked && linked.orgId === context.orgId ? linked : null;
     const activity = await ctx.db
       .query("activityLog")
       .withIndex("by_record", (q) =>
@@ -1222,7 +1241,12 @@ export const updateVehicle = mutation({
       if ((clean as Record<string, unknown>)[key] === undefined) patch[key] = undefined;
     }
 
-    const changes = await vehicleChanges(ctx, existing as unknown as Record<string, unknown>, clean);
+    const changes = await vehicleChanges(
+      ctx,
+      existing as unknown as Record<string, unknown>,
+      clean,
+      context.orgId,
+    );
     await ctx.db.patch(existing._id, patch);
 
     const statusChanged = existing.status !== clean.status;
