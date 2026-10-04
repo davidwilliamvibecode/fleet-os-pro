@@ -374,6 +374,18 @@ const schema = defineSchema(
     })
       .index("by_org", ["orgId"])
       .index("by_created", ["createdAt"]),
+
+    /**
+     * Cotas de uso por empresa (`orgId:ação`). Só guarda as marcas de tempo
+     * dentro da janela — o que deixa a própria expiração fazer a limpeza.
+     */
+    rateLimits: defineTable({
+      orgId: v.id("organizations"),
+      key: v.string(),
+      hits: v.array(v.number()),
+    })
+      .index("by_key", ["key"])
+      .index("by_org", ["orgId"]),
   },
   {
     // Validação ligada: toda escrita passa a ser conferida contra este schema,

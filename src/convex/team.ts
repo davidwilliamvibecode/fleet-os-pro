@@ -7,6 +7,7 @@ import {
 } from "./schema";
 import { COMPANY_ROLES, OWNER_ROLES, TEAM_ROLES } from "./constants";
 import { logActivity, requireOrg, requireRole, signedInUser } from "./fleet";
+import { limit } from "./limits";
 
 /* -------------------------------------------------------------------------- */
 /*  Company + team                                                            */
@@ -177,6 +178,9 @@ export const addMember = mutation({
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode convidar integrantes.");
+    // Convite é a operação mais sensível: cada um adiciona uma pessoa com
+    // acesso aos dados da empresa, e o login por e-mail não tem cota de envio.
+    await limit(ctx, context.orgId, "invite");
     // Handing out owner access is an owner-only action.
     if (args.role === "owner") {
       requireRole(context.role, OWNER_ROLES, "Somente o proprietário pode conceder acesso de proprietário.");

@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { limit } from "./limits";
 import {
   maintenanceTypeValidator,
   documentTypeValidator,
@@ -187,6 +188,7 @@ export const createMaintenance = mutation({
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite registrar manutenções.");
+    await limit(ctx, context.orgId, "createMaintenance");
 
     const vehicle = await ctx.db.get(args.vehicleId);
     if (!vehicle || vehicle.orgId !== context.orgId) {
@@ -340,6 +342,7 @@ export const createVehicleDocument = mutation({
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite cadastrar documentos.");
+    await limit(ctx, context.orgId, "createDocument");
 
     const vehicle = await ctx.db.get(args.vehicleId);
     if (!vehicle || vehicle.orgId !== context.orgId) {

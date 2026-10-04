@@ -1,5 +1,6 @@
 import { ConvexError, v, type Infer } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { limit } from "./limits";
 import {
   canSeeCompensation,
   diffFields,
@@ -296,6 +297,7 @@ export const createDriver = mutation({
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite cadastrar motoristas.");
+    await limit(ctx, context.orgId, "createDriver");
 
     const clean = driverFromInput(args as unknown as Record<string, unknown>);
     const duplicate = await ctx.db

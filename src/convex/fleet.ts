@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { canSeeDriverPersonalData } from "./access";
+import { limit } from "./limits";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   COMPANY_ROLES,
@@ -1059,6 +1060,7 @@ export const createVehicle = mutation({
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow adding vehicles.");
+    await limit(ctx, context.orgId, "createVehicle");
 
     const clean = vehicleFromInput(args as unknown as Record<string, unknown>);
 
@@ -1348,6 +1350,7 @@ export const seedDemoFleet = mutation({
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow adding fleet records.");
+    await limit(ctx, context.orgId, "seed");
 
     const existingVehicles = await ctx.db
       .query("vehicles")
@@ -1458,6 +1461,8 @@ export const clearFleetData = mutation({
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode limpar os dados da frota.");
+    // Operação destrutiva e pesada: cota baixa para não virar script de stress.
+    await limit(ctx, context.orgId, "bulk");
 
     const vehicles = await ctx.db
       .query("vehicles")
