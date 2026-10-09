@@ -40,6 +40,21 @@ export const createOrganization = mutation({
     const user = await signedInUser(ctx);
     if (!user) throw new ConvexError("Sua sessão expirou. Entre novamente.");
 
+    const userRecord = await ctx.db.get(user.userId);
+
+    if (!userRecord) {
+      throw new ConvexError(
+        "Não foi possível validar sua conta. Entre novamente.",
+      );
+    }
+
+    if (userRecord.isAnonymous) {
+      throw new ConvexError(
+        "Para criar uma empresa, entre com uma conta vinculada ao seu e-mail. " +
+          "Você pode continuar explorando o sistema como convidado.",
+      );
+    }
+
     const existing = await ctx.db
       .query("memberships")
       .withIndex("by_user", (q) => q.eq("userId", user.userId))
