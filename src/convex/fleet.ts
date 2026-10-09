@@ -105,7 +105,7 @@ export async function signedInUser(ctx: QueryCtx | MutationCtx) {
   const user = await ctx.db.get(userId);
   return {
     userId,
-    name: user?.name ?? user?.email ?? "Team member",
+    name: user?.name ?? user?.email ?? "Membro da equipe",
     email: user?.email ?? "",
   };
 }
@@ -289,7 +289,7 @@ function vehicleFromInput(
       input,
       "ownershipType",
       ["owned", "financed", "leased", "rented"] as const,
-      "Ownership type",
+      "Tipo de propriedade",
     ),
     status: readEnum(input, "status", VEHICLE_STATUSES, "Situação"),
     odometer,
@@ -307,7 +307,7 @@ function vehicleFromInput(
     input,
     "transmission",
     ["automatic", "manual", "automated_manual"] as const,
-    "Transmission",
+    "Câmbio",
   );
   if (transmission) draft.transmission = transmission;
 
@@ -436,8 +436,8 @@ export function diffFields<T>(
 /**
  * Nome do motorista para os registros de auditoria.
  *
- * Recebe a empresa de quem está asking e reconfirma: se a referência vier
- * corrompida, vira "Unassigned" em vez de gravar o nome de um motorista de
+ * Recebe a empresa de quem está solicitando e reconfirma: se a referência vier
+ * corrompida, vira "Não vinculado" em vez de gravar o nome de um motorista de
  * outra empresa no histórico de quem fez a alteração.
  */
 async function driverName(
@@ -446,7 +446,7 @@ async function driverName(
   orgId: Id<"organizations">,
 ) {
   const driver = await ctx.db.get(driverId);
-  if (!driver || driver.orgId !== orgId) return "Unassigned";
+  if (!driver || driver.orgId !== orgId) return "Não vinculado";
   return `${driver.firstName} ${driver.lastName}`;
 }
 
@@ -1016,7 +1016,7 @@ export const vehicleDetail = query({
       .order("desc")
       .take(40);
 
-    // Peers shown in the assignment picker so a driver can be moved in one step.
+    // Veículos disponíveis mostrados no seletor de vinculação para mover um motorista em uma etapa.
     const otherVehicles = await ctx.db
       .query("vehicles")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
@@ -1078,7 +1078,7 @@ export const createVehicle = mutation({
   args: { ...vehicleInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow adding vehicles.");
+    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite cadastrar veículos.");
     await limit(ctx, context.orgId, "createVehicle");
 
     const clean = vehicleFromInput(args as unknown as Record<string, unknown>);
@@ -1260,7 +1260,7 @@ export const updateVehicle = mutation({
       entityLabel: `Unidade ${clean.unitNumber}`,
       summary: statusChanged
         ? `Situação alterada de ${existing.status.replace(/_/g, " ")} para ${clean.status.replace(/_/g, " ")}.`
-        : "Registro do veículo atualizado.",
+        : "Registro do veículo atualizado com sucesso.",
       changes,
     });
 
@@ -1335,14 +1335,14 @@ const DEMO_VEHICLES: {
   registrationOffset: number;
   serviceOffset: number;
 }[] = [
-  { unitNumber: "101", vehicleType: "truck", make: "Freightliner", model: "Cascadia 126", year: 2021, vin: "1FUJHHDR1MLM12345", plate: "NW-4821", fuelType: "diesel", odometer: 412500, acquisitionCost: 148000, currentValue: 112000, status: "assigned", depot: "Harbour Yard", insuranceOffset: 210, registrationOffset: 96, serviceOffset: 18 },
-  { unitNumber: "102", vehicleType: "truck", make: "Volvo", model: "VNL 860", year: 2022, vin: "4V4NC9EH2NN654321", plate: "NW-5117", fuelType: "diesel", odometer: 288900, acquisitionCost: 162500, currentValue: 138000, status: "assigned", depot: "Harbour Yard", insuranceOffset: 12, registrationOffset: 240, serviceOffset: 40 },
-  { unitNumber: "103", vehicleType: "truck", make: "Kenworth", model: "T680", year: 2020, vin: "1XKYDP9X4LJ998877", plate: "NW-3390", fuelType: "diesel", odometer: 521300, acquisitionCost: 139000, currentValue: 89000, status: "maintenance", depot: "North Depot", insuranceOffset: 150, registrationOffset: 20, serviceOffset: -6 },
-  { unitNumber: "104", vehicleType: "van", make: "Ford", model: "Transit 350", year: 2023, vin: "1FTBW2CM5PKA11223", plate: "NW-7745", fuelType: "gasoline", odometer: 62400, acquisitionCost: 54000, currentValue: 47000, status: "assigned", depot: "Metro Hub", insuranceOffset: 320, registrationOffset: 300, serviceOffset: 55 },
-  { unitNumber: "105", vehicleType: "pickup", make: "Toyota", model: "Hilux", year: 2022, vin: "8AJBA3CD1N1234567", plate: "NW-2210", fuelType: "diesel", odometer: 98700, acquisitionCost: 42000, currentValue: 36000, status: "available", depot: "Metro Hub", insuranceOffset: 88, registrationOffset: 150, serviceOffset: 30 },
-  { unitNumber: "106", vehicleType: "truck", make: "International", model: "LT625", year: 2019, vin: "3HSDJAPR5KN778899", plate: "NW-1044", fuelType: "diesel", odometer: 688400, acquisitionCost: 121000, currentValue: 62000, status: "out_of_service", depot: "North Depot", insuranceOffset: -9, registrationOffset: 60, serviceOffset: -21 },
-  { unitNumber: "107", vehicleType: "van", make: "Mercedes-Benz", model: "Sprinter 2500", year: 2024, vin: "W1Y40CHYXPT334455", plate: "NW-8892", fuelType: "diesel", odometer: 21850, acquisitionCost: 61500, currentValue: 58000, status: "assigned", depot: "Metro Hub", insuranceOffset: 400, registrationOffset: 380, serviceOffset: 80 },
-  { unitNumber: "108", vehicleType: "trailer", make: "Great Dane", model: "Everest 53", year: 2020, vin: "1GRAA0621LB556677", plate: "TRL-4088", fuelType: "diesel", odometer: 0, acquisitionCost: 38000, currentValue: 27000, status: "available", depot: "Harbour Yard", insuranceOffset: 200, registrationOffset: 44, serviceOffset: 120 },
+  { unitNumber: "101", vehicleType: "truck", make: "Volvo", model: "FH 500", year: 2021, vin: "YV496387452100987", plate: "SPP-1012", fuelType: "diesel", odometer: 412500, acquisitionCost: 238000, currentValue: 142000, status: "assigned", depot: "Galpão Centro", insuranceOffset: 210, registrationOffset: 96, serviceOffset: 18 },
+  { unitNumber: "102", vehicleType: "truck", make: "Mercedes-Benz", model: "Actros 1848", year: 2022, vin: "WDDGF4JP6JR9187654", plate: "SPP-2071", fuelType: "diesel", odometer: 288900, acquisitionCost: 276000, currentValue: 171000, status: "assigned", depot: "Galpão Centro", insuranceOffset: 12, registrationOffset: 240, serviceOffset: 40 },
+  { unitNumber: "103", vehicleType: "truck", make: "Scania", model: "S530", year: 2020, vin: "FT5127839480178765", plate: "SPP-3045", fuelType: "diesel", odometer: 521300, acquisitionCost: 229000, currentValue: 101000, status: "maintenance", depot: "Pátio Norte", insuranceOffset: 150, registrationOffset: 20, serviceOffset: -6 },
+  { unitNumber: "104", vehicleType: "van", make: "Ford", model: "Transit 2.4", year: 2023, vin: "WF0LTHBS5DPA123456", plate: "SPP-4783", fuelType: "diesel", odometer: 62400, acquisitionCost: 142000, currentValue: 98000, status: "assigned", depot: "Base Metropolitana", insuranceOffset: 320, registrationOffset: 300, serviceOffset: 55 },
+  { unitNumber: "105", vehicleType: "pickup", make: "Toyota", model: "Hilux 4x4", year: 2022, vin: "NM0AD0772BA1234567", plate: "SPP-5528", fuelType: "diesel", odometer: 98700, acquisitionCost: 186000, currentValue: 112000, status: "available", depot: "Base Metropolitana", insuranceOffset: 88, registrationOffset: 150, serviceOffset: 30 },
+  { unitNumber: "106", vehicleType: "truck", make: "International", model: "HT7100", year: 2019, vin: "IM1FP3DJ3LA9890123", plate: "SPP-6020", fuelType: "diesel", odometer: 688400, acquisitionCost: 187000, currentValue: 71000, status: "out_of_service", depot: "Pátio Norte", insuranceOffset: -9, registrationOffset: 60, serviceOffset: -21 },
+  { unitNumber: "107", vehicleType: "van", make: "Mercedes-Benz", model: "Sprinter 313 CDI", year: 2024, vin: "WDDGF3BG4MR0456123", plate: "SPP-7394", fuelType: "diesel", odometer: 21850, acquisitionCost: 198000, currentValue: 181000, status: "assigned", depot: "Base Metropolitana", insuranceOffset: 400, registrationOffset: 380, serviceOffset: 80 },
+  { unitNumber: "108", vehicleType: "trailer", make: "Great Dane", model: "Everest 53", year: 2020, vin: "1GYS2KEC7CL1123456", plate: "SPP-8112", fuelType: "diesel", odometer: 0, acquisitionCost: 42000, currentValue: 31000, status: "available", depot: "Galpão Centro", insuranceOffset: 200, registrationOffset: 44, serviceOffset: 120 },
 ];
 
 const DEMO_DRIVERS: {
@@ -1361,19 +1361,19 @@ const DEMO_DRIVERS: {
   rate: number;
   unit?: string;
 }[] = [
-  { firstName: "Marcus", lastName: "Delgado", phone: "(415) 555-0117", email: "marcus.delgado@example.com", city: "Oakland", licenseNumber: "CA-D8841207", licenseClass: "A", licenseOffset: 420, medicalOffset: 190, hireOffset: -1450, status: "active", compensationModel: "per_mile", rate: 0.62, unit: "101" },
-  { firstName: "Priya", lastName: "Raman", phone: "(415) 555-0193", email: "priya.raman@example.com", city: "San Jose", licenseNumber: "CA-D9023311", licenseClass: "A", licenseOffset: 18, medicalOffset: 42, hireOffset: -980, status: "active", compensationModel: "per_mile", rate: 0.64, unit: "102" },
-  { firstName: "Dwayne", lastName: "Okafor", phone: "(510) 555-0142", email: "dwayne.okafor@example.com", city: "Richmond", licenseNumber: "CA-D7710988", licenseClass: "A", licenseOffset: -12, medicalOffset: 25, hireOffset: -2200, status: "active", compensationModel: "hourly", rate: 34, unit: "104" },
-  { firstName: "Sofia", lastName: "Marchetti", phone: "(650) 555-0166", email: "sofia.marchetti@example.com", city: "Redwood City", licenseNumber: "CA-D6552210", licenseClass: "B", licenseOffset: 260, medicalOffset: 150, hireOffset: -640, status: "active", compensationModel: "salary", rate: 78000, unit: "107" },
-  { firstName: "Grant", lastName: "Whitfield", phone: "(408) 555-0178", email: "grant.whitfield@example.com", city: "Fremont", licenseNumber: "CA-D4409923", licenseClass: "A", licenseOffset: 132, medicalOffset: 38, hireOffset: -3100, status: "on_leave", compensationModel: "per_trip", rate: 210 },
-  { firstName: "Elena", lastName: "Vargas", phone: "(707) 555-0121", email: "elena.vargas@example.com", city: "Vallejo", licenseNumber: "CA-C9987123", licenseClass: "C", licenseOffset: 96, medicalOffset: 88, hireOffset: -320, status: "active", compensationModel: "hourly", rate: 29 },
+  { firstName: "Ricardo", lastName: "D'Almeida", phone: "(11) 96521-8847", email: "ricardo.dalmeida@exemplo.com.br", city: "São Paulo", licenseNumber: "CA-14825796", licenseClass: "A", licenseOffset: 420, medicalOffset: 190, hireOffset: -1450, status: "active", compensationModel: "por_km", rate: 0.62, unit: "101" },
+  { firstName: "Gabriela", lastName: "Machado", phone: "(21) 98254-0193", email: "gabriela.machado@exemplo.com.br", city: "Rio de Janeiro", licenseNumber: "CA-25741099", licenseClass: "A", licenseOffset: 18, medicalOffset: 42, hireOffset: -980, status: "active", compensationModel: "por_km", rate: 0.64, unit: "102" },
+  { firstName: "Carlos", lastName: "Sousa", phone: "(31) 99102-7742", email: "carlos.sousa@exemplo.com.br", city: "Belo Horizonte", licenseNumber: "CA-37610884", licenseClass: "A", licenseOffset: -12, medicalOffset: 25, hireOffset: -2200, status: "active", compensationModel: "por_hora", rate: 34, unit: "104" },
+  { firstName: "Sofia", lastName: "Marchetti", phone: "(11) 97348-6166", email: "sofia.marchetti@exemplo.com.br", city: "São Paulo", licenseNumber: "CA-48922105", licenseClass: "B", licenseOffset: 260, medicalOffset: 150, hireOffset: -640, status: "active", compensationModel: "salario", rate: 78000, unit: "107" },
+  { firstName: "Gustavo", lastName: "Whitfield", phone: "(19) 98783-7781", email: "gustavo.whitfield@exemplo.com.br", city: "Campinas", licenseNumber: "CA-59502112", licenseClass: "A", licenseOffset: 132, medicalOffset: 38, hireOffset: -3100, status: "on_leave", compensationModel: "por_viagem", rate: 210 },
+  { firstName: "Elena", lastName: "Vargas", phone: "(51) 98431-5221", email: "elena.vargas@exemplo.com.br", city: "Porto Alegre", licenseNumber: "CA-61095638", licenseClass: "C", licenseOffset: 96, medicalOffset: 88, hireOffset: -320, status: "active", compensationModel: "por_hora", rate: 29 },
 ];
 
 export const seedDemoFleet = mutation({
   args: {},
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Your role does not allow adding fleet records.");
+    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite carregar dados de exemplo na frota.");
     await limit(ctx, context.orgId, "seed");
 
     const existingVehicles = await ctx.db
@@ -1414,7 +1414,7 @@ export const seedDemoFleet = mutation({
         depot: sample.depot,
         notes:
           sample.status === "out_of_service"
-            ? "Turbo failure — awaiting parts from vendor."
+            ? "Falha no turbo — aguardando peças do fornecedor."
             : undefined,
         createdBy: context.userId,
         createdAt: now,
@@ -1440,7 +1440,7 @@ export const seedDemoFleet = mutation({
         status: sample.status as Infer<typeof driverStatusValidator>,
         compensationModel: sample.compensationModel as Infer<typeof compensationValidator>,
         rate: sample.rate,
-        depot: "Harbour Yard",
+        depot: sample.depot,
         createdBy: context.userId,
         createdAt: now,
         updatedAt: now,
@@ -1473,7 +1473,7 @@ export const seedDemoFleet = mutation({
       entity: "workspace",
       entityLabel: "Frota de exemplo",
       summary: `Carregou dados de exemplo: ${DEMO_VEHICLES.length} veículos e ${DEMO_DRIVERS.length} motoristas (fictícios).`,
-      // Seed data is fictional: no real person or plate ever lands in the register.
+      // Dados de demonstração são fictícios: nenhuma pessoa real ou placa real é cadastrada no sistema.
     });
 
     return { vehicles: DEMO_VEHICLES.length, drivers: DEMO_DRIVERS.length };
@@ -1485,7 +1485,7 @@ export const clearFleetData = mutation({
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
     requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode limpar os dados da frota.");
-    // Operação destrutiva e pesada: cota baixa para não virar script de stress.
+    // Operação destrutiva e pesada: cota baixa para não virar script de teste massivo.
     await limit(ctx, context.orgId, "bulk");
 
     const vehicles = await ctx.db
@@ -1500,10 +1500,10 @@ export const clearFleetData = mutation({
       .query("activityLog")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(500);
-    // Child rows used to survive this wipe: service history, parts, costs,
-    // vendors and tax amounts stayed in the database after the user asked for
-    // everything to be cleared — which made the copy on the data screen a lie.
-    const maintenance = await ctx.db
+    // Registros filhos costumavam sobreviver a esta limpeza: histórico de serviços, peças, custos,
+    // fornecedores e valores de impostos ficavam no banco depois que o usuário pediu
+    // para limpar tudo — o que tornava a copia na tela de dados falsa.
+       const maintenance = await ctx.db
       .query("maintenanceRecords")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(500);

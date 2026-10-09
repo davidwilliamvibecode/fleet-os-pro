@@ -64,7 +64,7 @@ async function seedCompany(t: Harness, suffix: "a" | "b") {
     lastName: "Souza",
     licenseNumber: `CNH${suffix}0001`,
     status: "active",
-    compensationModel: "per_trip",
+    compensationModel: "por_viagem",
     rate: 950,
     phone: suffix === "a" ? "11999998888" : "11888887777",
     email: `carlos@empresa-${suffix}.com`,
@@ -149,7 +149,7 @@ describe("isolamento entre empresas", () => {
         lastName: "Souza",
         licenseNumber: "CNHa0001",
         status: "active",
-        compensationModel: "per_trip",
+        compensationModel: "por_viagem",
         rate: 1,
       }),
     ).rejects.toThrow();
