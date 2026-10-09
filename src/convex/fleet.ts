@@ -1361,12 +1361,12 @@ const DEMO_DRIVERS: {
   rate: number;
   unit?: string;
 }[] = [
-  { firstName: "Ricardo", lastName: "D'Almeida", phone: "(11) 96521-8847", email: "ricardo.dalmeida@exemplo.com.br", city: "São Paulo", licenseNumber: "CA-14825796", licenseClass: "A", licenseOffset: 420, medicalOffset: 190, hireOffset: -1450, status: "active", compensationModel: "por_km", rate: 0.62, unit: "101" },
-  { firstName: "Gabriela", lastName: "Machado", phone: "(21) 98254-0193", email: "gabriela.machado@exemplo.com.br", city: "Rio de Janeiro", licenseNumber: "CA-25741099", licenseClass: "A", licenseOffset: 18, medicalOffset: 42, hireOffset: -980, status: "active", compensationModel: "por_km", rate: 0.64, unit: "102" },
-  { firstName: "Carlos", lastName: "Sousa", phone: "(31) 99102-7742", email: "carlos.sousa@exemplo.com.br", city: "Belo Horizonte", licenseNumber: "CA-37610884", licenseClass: "A", licenseOffset: -12, medicalOffset: 25, hireOffset: -2200, status: "active", compensationModel: "por_hora", rate: 34, unit: "104" },
-  { firstName: "Sofia", lastName: "Marchetti", phone: "(11) 97348-6166", email: "sofia.marchetti@exemplo.com.br", city: "São Paulo", licenseNumber: "CA-48922105", licenseClass: "B", licenseOffset: 260, medicalOffset: 150, hireOffset: -640, status: "active", compensationModel: "salario", rate: 78000, unit: "107" },
-  { firstName: "Gustavo", lastName: "Whitfield", phone: "(19) 98783-7781", email: "gustavo.whitfield@exemplo.com.br", city: "Campinas", licenseNumber: "CA-59502112", licenseClass: "A", licenseOffset: 132, medicalOffset: 38, hireOffset: -3100, status: "on_leave", compensationModel: "por_viagem", rate: 210 },
-  { firstName: "Elena", lastName: "Vargas", phone: "(51) 98431-5221", email: "elena.vargas@exemplo.com.br", city: "Porto Alegre", licenseNumber: "CA-61095638", licenseClass: "C", licenseOffset: 96, medicalOffset: 88, hireOffset: -320, status: "active", compensationModel: "por_hora", rate: 29 },
+  { firstName: "Ricardo", lastName: "D'Almeida", phone: "(11) 96521-8847", email: "ricardo.dalmeida@exemplo.com.br", city: "São Paulo", licenseNumber: "SP-14825796", licenseClass: "A", licenseOffset: 420, medicalOffset: 190, hireOffset: -1450, status: "active", compensationModel: "por_km", rate: 0.62, unit: "101" },
+  { firstName: "Gabriela", lastName: "Machado", phone: "(21) 98254-0193", email: "gabriela.machado@exemplo.com.br", city: "Rio de Janeiro", licenseNumber: "SP-25741099", licenseClass: "A", licenseOffset: 18, medicalOffset: 42, hireOffset: -980, status: "active", compensationModel: "por_km", rate: 0.64, unit: "102" },
+  { firstName: "Carlos", lastName: "Sousa", phone: "(31) 99102-7742", email: "carlos.sousa@exemplo.com.br", city: "Belo Horizonte", licenseNumber: "SP-37610884", licenseClass: "A", licenseOffset: -12, medicalOffset: 25, hireOffset: -2200, status: "active", compensationModel: "por_hora", rate: 34, unit: "104" },
+  { firstName: "Sofia", lastName: "Marchetti", phone: "(11) 97348-6166", email: "sofia.marchetti@exemplo.com.br", city: "São Paulo", licenseNumber: "SP-48922105", licenseClass: "B", licenseOffset: 260, medicalOffset: 150, hireOffset: -640, status: "active", compensationModel: "salario", rate: 78000, unit: "107" },
+  { firstName: "Gustavo", lastName: "Pereira", phone: "(19) 98783-7781", email: "gustavo.pereira@exemplo.com.br", city: "Campinas", licenseNumber: "SP-59502112", licenseClass: "A", licenseOffset: 132, medicalOffset: 38, hireOffset: -3100, status: "on_leave", compensationModel: "por_viagem", rate: 210 },
+  { firstName: "Elena", lastName: "Vargas", phone: "(51) 98431-5221", email: "elena.vargas@exemplo.com.br", city: "Porto Alegre", licenseNumber: "SP-61095638", licenseClass: "C", licenseOffset: 96, medicalOffset: 88, hireOffset: -320, status: "active", compensationModel: "por_hora", rate: 29 },
 ];
 
 export const seedDemoFleet = mutation({
@@ -1411,7 +1411,7 @@ export const seedDemoFleet = mutation({
         nextServiceDate: now + sample.serviceOffset * DAY,
         nextServiceOdometer: sample.odometer + 15000,
         status: sample.status as Infer<typeof vehicleStatusValidator>,
-        depot: sample.depot,
+        depot: undefined,
         notes:
           sample.status === "out_of_service"
             ? "Falha no turbo — aguardando peças do fornecedor."
@@ -1440,7 +1440,7 @@ export const seedDemoFleet = mutation({
         status: sample.status as Infer<typeof driverStatusValidator>,
         compensationModel: sample.compensationModel as Infer<typeof compensationValidator>,
         rate: sample.rate,
-        depot: sample.depot,
+        depot: undefined,
         createdBy: context.userId,
         createdAt: now,
         updatedAt: now,

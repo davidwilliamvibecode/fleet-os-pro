@@ -57,14 +57,12 @@ async function seedCompany(t: Harness, suffix: "a" | "b") {
   const { orgId } = await asUser.mutation(
     api.team.createOrganization,
     companyArgs(`Transportes ${suffix.toUpperCase()}`),
-  );
-
-  const { driverId } = await asUser.mutation(api.drivers.createDriver, {
+  );    const { driverId } = await asUser.mutation(api.drivers.createDriver, {
     firstName: "Carlos",
     lastName: "Souza",
     licenseNumber: `CNH${suffix}0001`,
     status: "active",
-    compensationModel: "por_viagem",
+    compensationModel: "per_trip",
     rate: 950,
     phone: suffix === "a" ? "11999998888" : "11888887777",
     email: `carlos@empresa-${suffix}.com`,
@@ -149,7 +147,7 @@ describe("isolamento entre empresas", () => {
         lastName: "Souza",
         licenseNumber: "CNHa0001",
         status: "active",
-        compensationModel: "por_viagem",
+        compensationModel: "per_trip",
         rate: 1,
       }),
     ).rejects.toThrow();
