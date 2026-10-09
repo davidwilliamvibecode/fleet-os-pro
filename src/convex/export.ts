@@ -16,20 +16,62 @@ import { COMPANY_ROLES } from "./constants";
  * a exportação não pode virar um buraco na política de privacidade.
  */
 
-/** CSV com `;`, BOM e CRLF: abre direto no Excel brasileiro. */
-function toCsv(rows: Record<string, unknown>[], columns: string[]): string {
-  const escape = (value: unknown): string => {
-    if (value === null || value === undefined) return "";
-    const text =
-      typeof value === "number" && Number.isFinite(value)
-        ? new Date(value).toLocaleDateString("pt-BR")
-        : String(value);
-    return `"${text.replace(/"/g, '""')}"`;
-  };
+/**
+ * Serializa valores para CSV em UTF-8, com separador ; e linhas CRLF.
+ *
+ * Números permanecem números. Datas são formatadas somente quando
+ * a coluna explicitamente representa uma data.
+ */
+function toCsv(
+  rows: Record<string, unknown>[],
+  columns: string[],
+  dateColumns: string[] = [],
+): string {
+  const dateColumnSet = new Set(dateColumns);
+
+  function escape(value: unknown, column: string): string {
+    if (value === null || value === undefined) {
+      return "";
+    }
+
+    let serialized: string;
+
+    if (dateColumnSet.has(column)) {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        serialized = new Date(value).toLocaleDateString("pt-BR");
+      } else {
+        serialized = String(value);
+      }
+    } else if (typeof value === "number") {
+      if (!Number.isFinite(value)) {
+        return "";
+      }
+
+      serialized = String(value);
+    } else if (typeof value === "boolean") {
+      serialized = value ? "Sim" : "Não";
+    } else if (typeof value === "string") {
+      serialized = value;
+    } else {
+      serialized = JSON.stringify(value) ?? "";
+    }
+
+    // Protege campos que começam com caracteres interpretáveis como
+    // fórmulas por programas de planilha.
+    if (/^[\t\r ]*[=+\-@]/.test(serialized)) {
+      serialized = `'${serialized}`;
+    }
+
+    return `"${serialized.replace(/"/g, '""')}"`;
+  }
+
   const lines = [
-    columns.join(";"),
-    ...rows.map((row) => columns.map((column) => escape(row[column])).join(";")),
+    columns.map((column) => escape(column, column)).join(";"),
+    ...rows.map((row) =>
+      columns.map((column) => escape(row[column], column)).join(";"),
+    ),
   ];
+
   return `\uFEFF${lines.join("\r\n")}`;
 }
 
