@@ -168,6 +168,15 @@ export const buildExport = query({
             "criadoEm",
             "atualizadoEm",
           ],
+          [
+            "hodometroAtualizadoEm",
+            "aquisicaoEm",
+            "seguroVenceEm",
+            "licenciamentoVenceEm",
+            "proximaRevisaoEm",
+            "criadoEm",
+            "atualizadoEm",
+          ],
         ),
       },
       {
@@ -216,6 +225,7 @@ export const buildExport = query({
             "criadoEm",
             "atualizadoEm",
           ],
+          ["validadeCnh", "validadeMedico", "admissao", "criadoEm", "atualizadoEm"],
         ),
       },
       {
@@ -252,6 +262,7 @@ export const buildExport = query({
             "observacoes",
             "criadoEm",
           ],
+          ["data", "proximaData", "criadoEm"],
         ),
       },
       {
@@ -269,6 +280,7 @@ export const buildExport = query({
             observacoes: d.notes,
           })),
           ["unidade", "tipo", "titulo", "vencimento", "valor", "situacao", "pagoEm", "observacoes"],
+          ["vencimento", "pagoEm"],
         ),
       },
       {
@@ -284,6 +296,7 @@ export const buildExport = query({
             resumo: a.summary,
           })),
           ["quando", "quem", "acao", "entidade", "registro", "resumo"],
+          ["quando"],
         ),
       },
     ];
