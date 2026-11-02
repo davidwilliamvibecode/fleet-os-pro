@@ -59,13 +59,19 @@ export const createOrganization = mutation({
       .query("memberships")
       .withIndex("by_user", (q) => q.eq("userId", user.userId))
       .first();
-    if (existing) throw new ConvexError("Você já pertence a uma empresa no Fleet Command.");
+    if (existing)
+      throw new ConvexError("Você já pertence a uma empresa no Fleet OS Pro.");
 
     const name = args.name.trim();
     if (!name) throw new ConvexError("O nome da empresa é obrigatório.");
-    if (name.length > 80) throw new ConvexError("O nome da empresa deve ter menos de 80 caracteres.");
+    if (name.length > 80)
+      throw new ConvexError(
+        "O nome da empresa deve ter menos de 80 caracteres.",
+      );
     if (!/^[A-Z]{3}$/.test(args.currency.toUpperCase())) {
-      throw new ConvexError("Use um código de moeda com 3 letras, como BRL ou USD.");
+      throw new ConvexError(
+        "Use um código de moeda com 3 letras, como BRL ou USD.",
+      );
     }
 
     const now = Date.now();
@@ -83,7 +89,7 @@ export const createOrganization = mutation({
       distanceUnit: args.distanceUnit,
       volumeUnit: args.volumeUnit,
       timeZone: args.timeZone,
-      plan: "trial",
+      plan: "mvp",
       createdBy: user.userId,
       createdAt: now,
       updatedAt: now,
@@ -129,13 +135,22 @@ export const updateOrganization = mutation({
   },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode alterar as configurações da empresa.");
+    requireRole(
+      context.role,
+      COMPANY_ROLES,
+      "Somente proprietário ou administrador pode alterar as configurações da empresa.",
+    );
 
     const name = args.name.trim();
     if (!name) throw new ConvexError("O nome da empresa é obrigatório.");
-    if (name.length > 80) throw new ConvexError("O nome da empresa deve ter menos de 80 caracteres.");
+    if (name.length > 80)
+      throw new ConvexError(
+        "O nome da empresa deve ter menos de 80 caracteres.",
+      );
     if (!/^[A-Z]{3}$/.test(args.currency.toUpperCase())) {
-      throw new ConvexError("Use um código de moeda com 3 letras, como BRL ou USD.");
+      throw new ConvexError(
+        "Use um código de moeda com 3 letras, como BRL ou USD.",
+      );
     }
 
     await ctx.db.patch(context.orgId, {
@@ -174,7 +189,15 @@ export const completeSetup = mutation({
   args: {},
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
-    await ctx.db.patch(context.orgId, { setupCompletedAt: Date.now(), updatedAt: Date.now() });
+    requireRole(
+      context.role,
+      COMPANY_ROLES,
+      "Somente o proprietário ou administrador pode concluir a configuração.",
+    );
+    await ctx.db.patch(context.orgId, {
+      setupCompletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
     await logActivity(ctx, {
       orgId: context.orgId,
       userId: context.userId,
@@ -182,39 +205,45 @@ export const completeSetup = mutation({
       action: "update",
       entity: "workspace",
       entityLabel: "Configuração",
-      summary: "Concluiu a lista de configuração do Fleet Command.",
+      summary: "Concluiu a lista de configuração do Fleet OS Pro.",
     });
     return { ok: true };
   },
 });
 
 export const addMember = mutation({
-  args: { email: v.string(), role: orgRoleValidator },
+  args: { email: v.string(), accountId: v.id("users"), role: orgRoleValidator },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode convidar integrantes.");
+    requireRole(
+      context.role,
+      TEAM_ROLES,
+      "Somente o proprietário pode convidar integrantes.",
+    );
     // Convite é a operação mais sensível: cada um adiciona uma pessoa com
     // acesso aos dados da empresa, e o login por e-mail não tem cota de envio.
     await limit(ctx, context.orgId, "invite");
     // Handing out owner access is an owner-only action.
     if (args.role === "owner") {
-      requireRole(context.role, OWNER_ROLES, "Somente o proprietário pode conceder acesso de proprietário.");
+      requireRole(
+        context.role,
+        OWNER_ROLES,
+        "Somente o proprietário pode conceder acesso de proprietário.",
+      );
     }
 
     const email = args.email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       throw new ConvexError("Informe um e-mail válido.");
     }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", email))
-      .first();
+    const user = await ctx.db.get(args.accountId);
     // Deliberately generic: the caller must not learn whether an address is
     // registered here (that would be an e-mail enumeration oracle).
     const cannotAdd = new ConvexError(
-      "Não foi possível adicionar esse e-mail. A pessoa precisa ter entrado no Fleet Command pelo menos uma vez com esse endereço.",
+      "Não foi possível adicionar esse e-mail. A pessoa precisa ter entrado no Fleet OS Pro pelo menos uma vez com esse endereço.",
     );
-    if (!user) throw cannotAdd;
+    if (!user || user.isAnonymous || user.email?.trim().toLowerCase() !== email)
+      throw cannotAdd;
 
     const membership = await ctx.db
       .query("memberships")
@@ -225,7 +254,7 @@ export const addMember = mutation({
     }
     if (membership) {
       throw new ConvexError(
-        "Essa pessoa já pertence a uma empresa no Fleet Command. Cada conta acessa uma única empresa.",
+        "Essa pessoa já pertence a uma empresa no Fleet OS Pro. Cada conta acessa uma única empresa.",
       );
     }
 
@@ -235,6 +264,17 @@ export const addMember = mutation({
       role: args.role,
       createdAt: Date.now(),
     });
+
+    if (args.role === "driver") {
+      const drivers = await ctx.db
+        .query("drivers")
+        .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
+        .collect();
+      for (const driver of drivers) {
+        if (driver.email?.trim().toLowerCase() === email)
+          await ctx.db.patch(driver._id, { accountUserId: user._id });
+      }
+    }
 
     await logActivity(ctx, {
       orgId: context.orgId,
@@ -255,10 +295,18 @@ export const updateMemberRole = mutation({
   args: { membershipId: v.id("memberships"), role: orgRoleValidator },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode alterar papéis.");
+    requireRole(
+      context.role,
+      TEAM_ROLES,
+      "Somente o proprietário pode alterar papéis.",
+    );
     // Promoting somebody to owner is owner-only, exactly like inviting them.
     if (args.role === "owner") {
-      requireRole(context.role, OWNER_ROLES, "Somente o proprietário pode promover alguém a proprietário.");
+      requireRole(
+        context.role,
+        OWNER_ROLES,
+        "Somente o proprietário pode promover alguém a proprietário.",
+      );
     }
 
     const membership = await ctx.db.get(args.membershipId);
@@ -269,10 +317,14 @@ export const updateMemberRole = mutation({
       throw new ConvexError("Você não pode alterar seu próprio papel.");
     }
     if (membership.role === "owner") {
-      throw new ConvexError("O papel do proprietário da empresa não pode ser alterado.");
+      throw new ConvexError(
+        "O papel do proprietário da empresa não pode ser alterado.",
+      );
     }
     if (membership.role === "admin" && context.role !== "owner") {
-      throw new ConvexError("Somente o proprietário pode alterar o papel de um administrador.");
+      throw new ConvexError(
+        "Somente o proprietário pode alterar o papel de um administrador.",
+      );
     }
 
     await ctx.db.patch(membership._id, { role: args.role });
@@ -294,15 +346,22 @@ export const removeMember = mutation({
   args: { membershipId: v.id("memberships") },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, TEAM_ROLES, "Somente o proprietário pode remover integrantes.");
+    requireRole(
+      context.role,
+      TEAM_ROLES,
+      "Somente o proprietário pode remover integrantes.",
+    );
 
     const membership = await ctx.db.get(args.membershipId);
     if (!membership || membership.orgId !== context.orgId) {
       throw new ConvexError("Esse integrante não faz parte desta empresa.");
     }
-    if (membership.role === "owner") throw new ConvexError("O proprietário da empresa não pode ser removido.");
+    if (membership.role === "owner")
+      throw new ConvexError("O proprietário da empresa não pode ser removido.");
     if (membership.role === "admin" && context.role !== "owner") {
-      throw new ConvexError("Somente o proprietário pode remover um administrador.");
+      throw new ConvexError(
+        "Somente o proprietário pode remover um administrador.",
+      );
     }
 
     const user = await ctx.db.get(membership.userId);

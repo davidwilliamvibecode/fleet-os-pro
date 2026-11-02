@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RATE_LIMITS } from "./rateLimit";
+import { RATE_LIMITS } from "../convex/rateLimit";
 
 /**
  * O rate limit é a defesa contra laço automático (convite em massa, cadastro

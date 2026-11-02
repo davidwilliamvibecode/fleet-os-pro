@@ -48,8 +48,8 @@ export function useWorkspace() {
     org: workspace?.org ?? null,
     role: workspace?.role ?? null,
     members: workspace?.members ?? [],
-    currency: workspace?.org?.currency ?? "USD",
-    distanceUnit: workspace?.org?.distanceUnit ?? "mi",
+    currency: workspace?.org?.currency ?? "BRL",
+    distanceUnit: workspace?.org?.distanceUnit ?? "km",
   };
 }
 

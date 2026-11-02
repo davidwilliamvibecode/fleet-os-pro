@@ -83,7 +83,7 @@ const STEPS = [
   },
   {
     title: "Deixe os alertas trabalharem",
-    body: "O Fleet Command vigia vencimentos e intervalos de quilometragem e avisa semanas antes.",
+    body: "O Fleet OS Pro vigia vencimentos e intervalos de quilometragem e avisa semanas antes.",
   },
 ];
 
@@ -106,7 +106,7 @@ export default function Landing() {
             </span>
             <span className="leading-tight">
               <span className="block text-sm font-semibold tracking-tight text-ink">
-                Fleet Command
+                Fleet OS Pro
               </span>
               <span className="block text-[0.7rem] text-muted-foreground">
                 sistema de gestão de frota
@@ -174,7 +174,7 @@ export default function Landing() {
               O sistema operacional da sua frota, em um só lugar.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-              O Fleet Command reúne veículos, motoristas, manutenções, documentos, impostos e
+              O Fleet OS Pro reúne veículos, motoristas, manutenções, documentos, impostos e
               vencimentos em um espaço privado da sua empresa. Cadastre uma vez — o cadastro, o
               painel e o livro de registros permanecem em sincronia.
             </p>
@@ -391,7 +391,7 @@ export default function Landing() {
               planilhas.
             </p>
             <p className="mt-4 border-t border-border/70 pt-4 text-sm font-medium text-ink">
-              O Fleet Command vigia os prazos para o escritório cuidar da estrada.
+              O Fleet OS Pro vigia os prazos para o escritório cuidar da estrada.
             </p>
           </motion.div>
         </div>
@@ -404,7 +404,7 @@ export default function Landing() {
             Sua frota em uma só tela, a partir de hoje.
           </h2>
           <p className="max-w-xl text-base leading-7 text-primary-foreground/85">
-            Crie o espaço da sua empresa, cadastre a primeira unidade e deixe o Fleet Command cuidar
+            Crie o espaço da sua empresa, cadastre a primeira unidade e deixe o Fleet OS Pro cuidar
             da papelada. Inclui frota de exemplo, se preferir explorar antes.
           </p>
           <div className="flex flex-wrap gap-3">
@@ -430,7 +430,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:px-6">
           <div className="flex items-center gap-2">
             <Waypoints className="size-4 text-pen" aria-hidden="true" />
-            <span>Fleet Command · sistema de gestão de frota</span>
+            <span>Fleet OS Pro · sistema de gestão de frota</span>
           </div>
           <div className="flex items-center gap-4 font-mono text-xs">
             <Link to="/termos" className="transition-colors hover:text-ink">

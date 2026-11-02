@@ -6,7 +6,7 @@ import {
   type ActivityEntity,
 } from "./schema";
 import { orgContext } from "./fleet";
-import { canSeeDriverPersonalData } from "./access";
+import { canSeeDriverPersonalData, visibleActivity } from "./access";
 
 /* -------------------------------------------------------------------------- */
 /*  Log book + global search                                                  */
@@ -35,17 +35,19 @@ export const activityFeed = query({
           .order("desc")
           .take(Math.min(args.limit ?? 60, 200));
 
-    return rows.map((row) => ({
-      id: row._id,
-      action: row.action as ActivityAction,
-      entity: row.entity as ActivityEntity,
-      entityId: row.entityId ?? null,
-      entityLabel: row.entityLabel,
-      summary: row.summary,
-      actorName: row.actorName,
-      changes: row.changes ?? [],
-      createdAt: row.createdAt,
-    }));
+    return rows
+      .map((raw) => visibleActivity(context.role, raw))
+      .map((row) => ({
+        id: row._id,
+        action: row.action as ActivityAction,
+        entity: row.entity as ActivityEntity,
+        entityId: row.entityId ?? null,
+        entityLabel: row.entityLabel,
+        summary: row.summary,
+        actorName: row.actorName,
+        changes: row.changes ?? [],
+        createdAt: row.createdAt,
+      }));
   },
 });
 
@@ -69,15 +71,29 @@ export const search = query({
     // `driver` só encontra o próprio prontuário (os colegas ficam de fora, já
     // que aqui a resposta inclui CNH no subtítulo).
     const drivers = allDrivers.filter((driver) =>
-      canSeeDriverPersonalData(context.role, driver.email, context.email),
+      canSeeDriverPersonalData(
+        context.role,
+        driver.accountUserId,
+        context.userId,
+      ),
     );
 
     const match = (values: (string | null | undefined)[]) =>
-      values.filter(Boolean).some((value) => String(value).toLowerCase().includes(term));
+      values
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term));
 
     return {
       vehicles: vehicles
-        .filter((vehicle) => match([vehicle.unitNumber, vehicle.plate, vehicle.vin, vehicle.make, vehicle.model]))
+        .filter((vehicle) =>
+          match([
+            vehicle.unitNumber,
+            vehicle.plate,
+            vehicle.vin,
+            vehicle.make,
+            vehicle.model,
+          ]),
+        )
         .slice(0, 6)
         .map((vehicle) => ({
           id: vehicle._id,

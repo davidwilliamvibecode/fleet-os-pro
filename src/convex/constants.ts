@@ -1,5 +1,5 @@
 /**
- * Shared option lists for Fleet Command.
+ * Shared option lists for Fleet OS Pro.
  *
  * Kept free of Convex imports so the browser bundle can import the same arrays
  * the database validators are built from (see ./schema.ts). Add new options

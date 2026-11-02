@@ -66,7 +66,7 @@ export default function DashboardPage() {
         <EmptyNote
           icon={ClipboardList}
           title="Nenhuma empresa ainda"
-          description="Crie o perfil da empresa e o Fleet Command começa a cuidar do seu cadastro para você."
+          description="Crie o perfil da empresa e o Fleet OS Pro começa a cuidar do seu cadastro para você."
           action={
             <Button asChild>
               <Link to="/setup">Começar configuração</Link>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
               <p className="mt-4 text-sm text-muted-foreground">
                 {hasFleet
                   ? "Todas as datas de conformidade estão tranquilas no futuro. Nada vencido."
-                  : "Adicione a primeira unidade e o Fleet Command começa a monitorar seguro, licenciamento e revisões para você."}
+                  : "Adicione a primeira unidade e o Fleet OS Pro começa a monitorar seguro, licenciamento e revisões para você."}
               </p>
             )}
           </PaperPanel>

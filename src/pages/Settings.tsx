@@ -48,11 +48,7 @@ import {
   type WorkspaceMember,
 } from "@/hooks/use-workspace";
 import { errorMessage } from "@/lib/errors";
-import {
-  ORG_ROLE_LABELS,
-  formatDate,
-  labelFrom,
-} from "@/lib/format";
+import { ORG_ROLE_LABELS, formatDate, labelFrom } from "@/lib/format";
 import { useMutation } from "convex/react";
 import {
   BookText,
@@ -68,7 +64,9 @@ import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 
-const ROLE_OPTIONS = Object.entries(ORG_ROLE_LABELS).filter(([value]) => value !== "owner");
+const ROLE_OPTIONS = Object.entries(ORG_ROLE_LABELS).filter(
+  ([value]) => value !== "owner",
+);
 const TIME_ZONES = [
   "America/Sao_Paulo",
   "America/Manaus",
@@ -129,10 +127,13 @@ export default function SettingsPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") ?? "empresa";
-  const tab = (TAB_VALUES as readonly string[]).includes(requestedTab) ? requestedTab : "empresa";
+  const tab = (TAB_VALUES as readonly string[]).includes(requestedTab)
+    ? requestedTab
+    : "empresa";
 
   const [values, setValues] = useState(() => (org ? toValues(org) : null));
   const [savingOrg, setSavingOrg] = useState(false);
+  const [inviteAccountId, setInviteAccountId] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("dispatcher");
   const [inviting, setInviting] = useState(false);
@@ -168,10 +169,12 @@ export default function SettingsPage() {
     );
   }
 
-  const set = (key: keyof typeof values) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setValues((current) =>
-      current ? { ...current, [key]: event.target.value } : current,
-    );
+  const set =
+    (key: keyof typeof values) =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setValues((current) =>
+        current ? { ...current, [key]: event.target.value } : current,
+      );
 
   async function saveOrg(event: React.FormEvent) {
     event.preventDefault();
@@ -204,9 +207,14 @@ export default function SettingsPage() {
     event.preventDefault();
     setInviting(true);
     try {
-      await addMember({ email: inviteEmail.trim(), role: inviteRole as never });
-      toast.success(`Convite registrado para ${inviteEmail.trim()}`);
+      await addMember({
+        email: inviteEmail.trim(),
+        accountId: inviteAccountId.trim() as never,
+        role: inviteRole as never,
+      });
+      toast.success(`Acesso liberado para ${inviteEmail.trim()}`);
       setInviteEmail("");
+      setInviteAccountId("");
     } catch (error) {
       toast.error(errorMessage(error));
     } finally {
@@ -220,7 +228,9 @@ export default function SettingsPage() {
         membershipId: membership.membershipId as never,
         role: nextRole as never,
       });
-      toast.success(`${membership.name} agora é ${labelFrom(ORG_ROLE_LABELS, nextRole)}`);
+      toast.success(
+        `${membership.name} agora é ${labelFrom(ORG_ROLE_LABELS, nextRole)}`,
+      );
     } catch (error) {
       toast.error(errorMessage(error));
     }
@@ -263,7 +273,11 @@ export default function SettingsPage() {
 
         <Tabs
           value={tab}
-          onValueChange={(next) => setSearchParams(next === "empresa" ? {} : { tab: next }, { replace: true })}
+          onValueChange={(next) =>
+            setSearchParams(next === "empresa" ? {} : { tab: next }, {
+              replace: true,
+            })
+          }
           className="gap-5"
         >
           <TabsList className="paper h-auto flex-wrap justify-start gap-1 rounded-lg border border-border p-1">
@@ -274,7 +288,8 @@ export default function SettingsPage() {
               <Users className="size-3.5" aria-hidden="true" /> Equipe e acessos
             </TabsTrigger>
             <TabsTrigger value="logbook" className="gap-1.5">
-              <BookText className="size-3.5" aria-hidden="true" /> Livro de registros
+              <BookText className="size-3.5" aria-hidden="true" /> Livro de
+              registros
             </TabsTrigger>
             <TabsTrigger value="dados" className="gap-1.5">
               <ShieldCheck className="size-3.5" aria-hidden="true" /> Dados
@@ -284,7 +299,10 @@ export default function SettingsPage() {
           <TabsContent value="empresa">
             <form onSubmit={saveOrg} className="contents">
               <PaperPanel className="p-5">
-                <SectionHeading icon={Building2} hint="visível em todo o espaço de trabalho">
+                <SectionHeading
+                  icon={Building2}
+                  hint="visível em todo o espaço de trabalho"
+                >
                   Perfil da empresa
                 </SectionHeading>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -347,7 +365,12 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <Label htmlFor="org-city">Cidade</Label>
-                    <Input id="org-city" value={values.city} onChange={set("city")} className="paper mt-1.5" />
+                    <Input
+                      id="org-city"
+                      value={values.city}
+                      onChange={set("city")}
+                      className="paper mt-1.5"
+                    />
                   </div>
                   <div>
                     <Label htmlFor="org-region">Estado / região</Label>
@@ -371,7 +394,10 @@ export default function SettingsPage() {
               </PaperPanel>
 
               <PaperPanel className="mt-5 p-5">
-                <SectionHeading icon={Settings2} hint="usados em todas as exibições e conversões">
+                <SectionHeading
+                  icon={Settings2}
+                  hint="usados em todas as exibições e conversões"
+                >
                   Unidades &amp; localidade
                 </SectionHeading>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -390,7 +416,9 @@ export default function SettingsPage() {
                     <Select
                       value={values.distanceUnit}
                       onValueChange={(v) =>
-                        setValues((current) => (current ? { ...current, distanceUnit: v } : current))
+                        setValues((current) =>
+                          current ? { ...current, distanceUnit: v } : current,
+                        )
                       }
                     >
                       <SelectTrigger className="paper mt-1.5 w-full">
@@ -410,7 +438,9 @@ export default function SettingsPage() {
                     <Select
                       value={values.volumeUnit}
                       onValueChange={(v) =>
-                        setValues((current) => (current ? { ...current, volumeUnit: v } : current))
+                        setValues((current) =>
+                          current ? { ...current, volumeUnit: v } : current,
+                        )
                       }
                     >
                       <SelectTrigger className="paper mt-1.5 w-full">
@@ -430,7 +460,9 @@ export default function SettingsPage() {
                     <Select
                       value={values.timeZone}
                       onValueChange={(v) =>
-                        setValues((current) => (current ? { ...current, timeZone: v } : current))
+                        setValues((current) =>
+                          current ? { ...current, timeZone: v } : current,
+                        )
                       }
                     >
                       <SelectTrigger className="paper mt-1.5 w-full">
@@ -448,8 +480,17 @@ export default function SettingsPage() {
                 </div>
                 {canManage ? (
                   <div className="mt-5 flex items-center gap-3 border-t border-dashed border-border/70 pt-4">
-                    <Button type="submit" disabled={savingOrg} className="gap-2">
-                      {savingOrg ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                    <Button
+                      type="submit"
+                      disabled={savingOrg}
+                      className="gap-2"
+                    >
+                      {savingOrg ? (
+                        <Loader2
+                          className="size-4 animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : null}
                       Salvar configurações
                     </Button>
                     <p className="text-xs text-muted-foreground">
@@ -458,8 +499,8 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <p className="mt-4 border-t border-dashed border-border/70 pt-4 text-xs text-muted-foreground">
-                    Seu papel ({labelFrom(ORG_ROLE_LABELS, role ?? "viewer")}) é somente leitura para
-                    configurações da empresa.
+                    Seu papel ({labelFrom(ORG_ROLE_LABELS, role ?? "viewer")}) é
+                    somente leitura para configurações da empresa.
                   </p>
                 )}
               </PaperPanel>
@@ -468,11 +509,17 @@ export default function SettingsPage() {
 
           <TabsContent value="equipe">
             <PaperPanel className="p-5">
-              <SectionHeading icon={Users} hint={`${members.length} integrantes`}>
+              <SectionHeading
+                icon={Users}
+                hint={`${members.length} integrantes`}
+              >
                 Equipe &amp; permissões
               </SectionHeading>
               {canManageMembers ? (
-                <form onSubmit={invite} className="mt-4 flex flex-wrap items-end gap-3">
+                <form
+                  onSubmit={invite}
+                  className="mt-4 flex flex-wrap items-end gap-3"
+                >
                   <div className="min-w-56 flex-1">
                     <Label htmlFor="invite-email">Adicionar integrante</Label>
                     <Input
@@ -483,6 +530,21 @@ export default function SettingsPage() {
                       placeholder="colega@suaempresa.com.br"
                       required
                       className="paper mt-1.5"
+                    />
+                  </div>
+                  <div className="min-w-56 flex-1">
+                    <Label htmlFor="invite-account">
+                      Identificador da conta
+                    </Label>
+                    <Input
+                      id="invite-account"
+                      value={inviteAccountId}
+                      onChange={(event) =>
+                        setInviteAccountId(event.target.value)
+                      }
+                      required
+                      className="mt-1.5"
+                      placeholder="Copiado pela pessoa na configuração inicial"
                     />
                   </div>
                   <div className="w-52">
@@ -502,21 +564,27 @@ export default function SettingsPage() {
                   </div>
                   <Button type="submit" disabled={inviting} className="gap-2">
                     {inviting ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                      <Loader2
+                        className="size-4 animate-spin"
+                        aria-hidden="true"
+                      />
                     ) : (
                       <UserPlus className="size-4" aria-hidden="true" />
                     )}
                     Adicionar ao espaço
                   </Button>
                   <p className="w-full text-xs text-muted-foreground">
-                    A pessoa precisa ter entrado no Fleet Command pelo menos uma vez com este e-mail.
-                    Os papéis definem quem edita cadastros, gerencia a equipe e vê dados financeiros.
+                    A pessoa cria sua conta e envia o identificador exibido na
+                    configuração inicial. Confira o identificador diretamente
+                    com ela antes de liberar o acesso. Os papéis definem quem
+                    edita cadastros, gerencia a equipe e vê dados financeiros.
                   </p>
                 </form>
               ) : (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Somente o proprietário da empresa adiciona integrantes ou altera papéis — assim
-                  nenhum administrador pode conceder acesso de proprietário por conta própria.
+                  Somente o proprietário da empresa adiciona integrantes ou
+                  altera papéis — assim nenhum administrador pode conceder
+                  acesso de proprietário por conta própria.
                 </p>
               )}
 
@@ -539,21 +607,35 @@ export default function SettingsPage() {
                           <TableCell>
                             <span className="block text-sm font-medium text-ink">
                               {member.name}
-                              {isSelf ? <span className="ml-2 text-xs text-muted-foreground">(você)</span> : null}
+                              {isSelf ? (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  (você)
+                                </span>
+                              ) : null}
                             </span>
-                            <span className="block text-xs text-muted-foreground">{member.email}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {member.email}
+                            </span>
                           </TableCell>
                           <TableCell>
                             {isOwner || isSelf || !canManageMembers ? (
-                              <Stamp tone={isOwner ? "info" : "neutral"} rotate={false}>
+                              <Stamp
+                                tone={isOwner ? "info" : "neutral"}
+                                rotate={false}
+                              >
                                 {labelFrom(ORG_ROLE_LABELS, member.role)}
                               </Stamp>
                             ) : (
                               <Select
                                 value={member.role}
-                                onValueChange={(value) => changeRole(member, value)}
+                                onValueChange={(value) =>
+                                  changeRole(member, value)
+                                }
                               >
-                                <SelectTrigger className="h-8 w-44 text-xs" aria-label="Alterar papel">
+                                <SelectTrigger
+                                  className="h-8 w-44 text-xs"
+                                  aria-label="Alterar papel"
+                                >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="paper">
@@ -580,20 +662,30 @@ export default function SettingsPage() {
                                       className="text-stamp-bad"
                                       aria-label={`Remover ${member.name}`}
                                     >
-                                      <Trash2 className="size-4" aria-hidden="true" />
+                                      <Trash2
+                                        className="size-4"
+                                        aria-hidden="true"
+                                      />
                                     </Button>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent className="paper">
                                     <AlertDialogHeader>
-                                      <AlertDialogTitle>Remover {member.name}?</AlertDialogTitle>
+                                      <AlertDialogTitle>
+                                        Remover {member.name}?
+                                      </AlertDialogTitle>
                                       <AlertDialogDescription>
-                                        A pessoa perde o acesso a este espaço de trabalho imediatamente.
-                                        Os registros da frota permanecem intactos.
+                                        A pessoa perde o acesso a este espaço de
+                                        trabalho imediatamente. Os registros da
+                                        frota permanecem intactos.
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => removeTeamMember(member)}>
+                                      <AlertDialogCancel>
+                                        Cancelar
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => removeTeamMember(member)}
+                                      >
                                         Remover integrante
                                       </AlertDialogAction>
                                     </AlertDialogFooter>
@@ -614,10 +706,13 @@ export default function SettingsPage() {
           <TabsContent value="logbook">
             <div className="flex flex-col gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-ink">Livro de registros</h2>
+                <h2 className="text-lg font-semibold text-ink">
+                  Livro de registros
+                </h2>
                 <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                  Todo cadastro, edição, vinculação, mudança de status e atualização de equipe fica
-                  escrito aqui — quem fez, o que mudou e quando.
+                  Todo cadastro, edição, vinculação, mudança de status e
+                  atualização de equipe fica escrito aqui — quem fez, o que
+                  mudou e quando.
                 </p>
               </div>
               <LogbookPanel />
@@ -627,23 +722,34 @@ export default function SettingsPage() {
           <TabsContent value="dados">
             {canManage ? (
               <PaperPanel className="p-5">
-                <SectionHeading icon={ShieldCheck} hint="somente proprietário e administrador">
+                <SectionHeading
+                  icon={ShieldCheck}
+                  hint="somente proprietário e administrador"
+                >
                   Controles de dados
                 </SectionHeading>
                 <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="max-w-xl text-sm text-muted-foreground">
                     <p>
-                      Limpar remove todos os veículos, motoristas, manutenções, documentos e registros
-                      do livro deste espaço de trabalho. As configurações da empresa e os integrantes
-                      são mantidos. Use para zerar o cadastro antes de uma implantação real ou depois
-                      de testar com dados de exemplo.
+                      Limpar remove todos os veículos, motoristas, manutenções,
+                      documentos e registros do livro deste espaço de trabalho.
+                      As configurações da empresa e os integrantes são mantidos.
+                      Use para zerar o cadastro antes de uma implantação real ou
+                      depois de testar com dados de exemplo.
                     </p>
                   </div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="gap-2 text-stamp-bad" disabled={clearing}>
+                      <Button
+                        variant="outline"
+                        className="gap-2 text-stamp-bad"
+                        disabled={clearing}
+                      >
                         {clearing ? (
-                          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                          <Loader2
+                            className="size-4 animate-spin"
+                            aria-hidden="true"
+                          />
                         ) : (
                           <Trash2 className="size-4" aria-hidden="true" />
                         )}
@@ -652,10 +758,13 @@ export default function SettingsPage() {
                     </AlertDialogTrigger>
                     <AlertDialogContent className="paper">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Limpar todo o cadastro?</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          Limpar todo o cadastro?
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          Todos os veículos, motoristas, manutenções, documentos e registros do livro
-                          de {org.name} serão excluídos. Esta ação não pode ser desfeita.
+                          Todos os veículos, motoristas, manutenções, documentos
+                          e registros do livro de {org.name} serão excluídos.
+                          Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -668,11 +777,15 @@ export default function SettingsPage() {
                   </AlertDialog>
                 </div>
                 <div className="mt-5 border-t border-dashed border-border/70 pt-4 text-sm leading-6 text-muted-foreground">
-                  <p className="font-medium text-ink">Isolamento entre empresas</p>
+                  <p className="font-medium text-ink">
+                    Isolamento entre empresas
+                  </p>
                   <p className="mt-1">
-                    Todo registro deste espaço de trabalho é vinculado a {org.name} no servidor.
-                    Usuários de outras empresas não conseguem consultar, listar ou adivinhar os seus
-                    dados — cada consulta e alteração revalida a associação antes de retornar algo.
+                    Todo registro deste espaço de trabalho é vinculado a{" "}
+                    {org.name} no servidor. Usuários de outras empresas não
+                    conseguem consultar, listar ou adivinhar os seus dados —
+                    cada consulta e alteração revalida a associação antes de
+                    retornar algo.
                   </p>
                 </div>
                 <div className="mt-6 space-y-6 border-t border-dashed border-border/70 pt-6">

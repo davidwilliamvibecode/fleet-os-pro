@@ -243,9 +243,6 @@ describe("export CSV", () => {
     const t = makeHarness();
     const A = await seedCompany(t, "delta");
 
-    const veiculo = await A.asUser.query(api.fleet.listVehicles, {});
-    const vehicleId = veiculo.rows[0].id as Id<"vehicles">;
-
     // Motorista sem datas explícitas.
     await A.asUser.mutation(api.drivers.createDriver, {
       firstName: "Bruno",

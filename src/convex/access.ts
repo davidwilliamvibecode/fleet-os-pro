@@ -1,31 +1,34 @@
 import type { OrgRole } from "./constants";
 
-/**
- * Quem pode ver os dados pessoais de um motorista.
- *
- * Um integrante com papel `driver` enxerga o próprio prontuário em detalhe —
- * reconhecido pelo e-mail que ele usa para entrar — e, dos colegas, apenas o
- * que é operacional (nome, unidade e situação). Telefone, endereço, contato de
- * emergência, CNH e remuneração de terceiros são dados pessoais e ficam fora
- * (LGPD): o papel de motorista no Fleet Command não é um RH.
- *
- * Sem e-mail cadastrado no prontuário, ninguém é reconhecido como "eu" — o
- * padrão é negar.
- *
- * Fica neste módulo (e não em `fleet.ts`) para `fleet`, `drivers` e `logbook`
- * compartilharem a mesma regra sem criar import circular entre eles.
- */
+/** Self access uses an account explicitly linked by the company, never an unverified email. */
 export function canSeeDriverPersonalData(
   role: OrgRole,
-  driverEmail: string | undefined,
-  callerEmail: string,
+  linkedUserId: string | undefined,
+  callerUserId: string,
 ) {
   if (role !== "driver") return true;
-  // Sem e-mail nos dois lados não há como reconhecer "eu": negar. Isso também
-  // evita que um convidado sem e-mail (string vazia) case com um prontuário
-  // que também esteja sem e-mail.
-  const driver = driverEmail?.trim().toLowerCase();
-  const caller = callerEmail?.trim().toLowerCase();
-  if (!driver || !caller) return false;
-  return driver === caller;
+  return Boolean(linkedUserId && callerUserId && linkedUserId === callerUserId);
+}
+
+/** The audit log must obey the same privacy rules as the current record. */
+export function visibleActivity<
+  T extends {
+    entity: string;
+    summary: string;
+    changes?: { field: string; from?: string; to?: string }[];
+  },
+>(role: OrgRole, row: T): T {
+  if (role === "driver" && row.entity === "driver")
+    return {
+      ...row,
+      summary: "Atualizou um cadastro de motorista.",
+      changes: [],
+    };
+  if (!["owner", "admin", "fleet_manager", "finance"].includes(role)) {
+    return {
+      ...row,
+      changes: row.changes?.filter((change) => change.field !== "Remuneração"),
+    };
+  }
+  return row;
 }

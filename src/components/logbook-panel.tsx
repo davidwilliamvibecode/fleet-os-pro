@@ -119,7 +119,7 @@ export function LogbookPanel() {
           <EmptyNote
             icon={BookText}
             title="O livro de registros está vazio"
-            description="Assim que você ou sua equipe cadastrar, editar ou vincular algo no Fleet Command, tudo fica registrado aqui — uma trilha de auditoria permanente para toda a empresa."
+            description="Assim que você ou sua equipe cadastrar, editar ou vincular algo no Fleet OS Pro, tudo fica registrado aqui — uma trilha de auditoria permanente para toda a empresa."
           />
         ) : (
           <EmptyNote

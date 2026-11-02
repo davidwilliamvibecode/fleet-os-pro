@@ -1,6 +1,6 @@
 {
-  "name": "Fleet Command",
-  "short_name": "Fleet Command",
+  "name": "Fleet OS Pro",
+  "short_name": "Fleet OS Pro",
   "description": "Sistema de gestão de frota para veículos, motoristas, manutenção, documentos e custos operacionais.",
   "lang": "pt-BR",
   "start_url": "/dashboard",

@@ -1,9 +1,14 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { canSeeDriverPersonalData } from "./access";
+import { canSeeDriverPersonalData, visibleActivity } from "./access";
 import { limit } from "./limits";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import {
   COMPANY_ROLES,
   COMPENSATION_ROLES,
@@ -33,8 +38,9 @@ const DAY = 24 * 60 * 60 * 1000;
 /*  Shared input validators                                                   */
 /* -------------------------------------------------------------------------- */
 
-const vehicleInput = {    unitNumber: v.string(),
-    vehicleType: vehicleTypeValidator,
+const vehicleInput = {
+  unitNumber: v.string(),
+  vehicleType: vehicleTypeValidator,
   make: v.string(),
   model: v.string(),
   year: v.optional(v.number()),
@@ -132,12 +138,16 @@ export async function orgContext(ctx: QueryCtx | MutationCtx) {
   };
 }
 
-export async function requireOrg(ctx: QueryCtx | MutationCtx): Promise<OrgContext> {
+export async function requireOrg(
+  ctx: QueryCtx | MutationCtx,
+): Promise<OrgContext> {
   const user = await signedInUser(ctx);
   if (!user) throw new ConvexError("Sua sessão expirou. Entre novamente.");
   const context = await orgContext(ctx);
   if (!context) {
-    throw new ConvexError("Crie o perfil da empresa antes de registrar dados da frota.");
+    throw new ConvexError(
+      "Crie o perfil da empresa antes de registrar dados da frota.",
+    );
   }
   return {
     userId: context.userId,
@@ -148,7 +158,11 @@ export async function requireOrg(ctx: QueryCtx | MutationCtx): Promise<OrgContex
   };
 }
 
-export function requireRole(role: OrgRole, allowed: OrgRole[], message: string) {
+export function requireRole(
+  role: OrgRole,
+  allowed: OrgRole[],
+  message: string,
+) {
   if (!allowed.includes(role)) throw new ConvexError(message);
 }
 
@@ -165,11 +179,17 @@ export function canSeeCompensation(role: OrgRole) {
 /*  Field parsing / validation                                                */
 /* -------------------------------------------------------------------------- */
 
-export function readText(input: Record<string, unknown>, key: string, label: string, max = 120) {
+export function readText(
+  input: Record<string, unknown>,
+  key: string,
+  label: string,
+  max = 120,
+) {
   const raw = input[key];
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) throw new ConvexError(`${label} é obrigatório.`);
-  if (value.length > max) throw new ConvexError(`${label} deve ter menos de ${max} caracteres.`);
+  if (value.length > max)
+    throw new ConvexError(`${label} deve ter menos de ${max} caracteres.`);
   return value;
 }
 
@@ -184,7 +204,8 @@ export function readOptionalText(
   if (typeof raw === "number") return String(raw);
   const value = typeof raw === "string" ? raw.trim() : "";
   if (!value) return undefined;
-  if (value.length > max) throw new ConvexError(`${label} deve ter menos de ${max} caracteres.`);
+  if (value.length > max)
+    throw new ConvexError(`${label} deve ter menos de ${max} caracteres.`);
   return value;
 }
 
@@ -246,12 +267,21 @@ export function readOptionalNumber(
   return readNumber(input, key, label, opts);
 }
 
-export function readOptionalDate(input: Record<string, unknown>, key: string, label: string) {
+export function readOptionalDate(
+  input: Record<string, unknown>,
+  key: string,
+  label: string,
+) {
   const raw = input[key];
   if (raw === undefined || raw === null || raw === "") return undefined;
   const value =
-    typeof raw === "number" ? raw : typeof raw === "string" ? Date.parse(`${raw}T00:00:00`) : NaN;
-  if (!Number.isFinite(value)) throw new ConvexError(`${label} não é uma data válida.`);
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Date.parse(`${raw}T00:00:00`)
+        : NaN;
+  if (!Number.isFinite(value))
+    throw new ConvexError(`${label} não é uma data válida.`);
   if (value < Date.parse("1900-01-01") || value > Date.now() + 40 * 365 * DAY) {
     throw new ConvexError(`${label} está fora do intervalo suportado.`);
   }
@@ -275,13 +305,24 @@ function vehicleFromInput(
   input: Record<string, unknown>,
   current?: { status?: string; odometer?: number },
 ): CleanVehicle {
-  const odometer = readNumber(input, "odometer", "Odometer", { min: 0, max: 5_000_000 });
+  const odometer = readNumber(input, "odometer", "Odometer", {
+    min: 0,
+    max: 5_000_000,
+  });
   const unitNumber = readText(input, "unitNumber", "Número da unidade", 40);
-  const year = readOptionalNumber(input, "year", "Ano", { min: 1900, max: new Date().getFullYear() + 2 });
+  const year = readOptionalNumber(input, "year", "Ano", {
+    min: 1900,
+    max: new Date().getFullYear() + 2,
+  });
 
   const draft: CleanVehicle = {
     unitNumber,
-    vehicleType: readEnum(input, "vehicleType", VEHICLE_TYPES, "Tipo de veículo"),
+    vehicleType: readEnum(
+      input,
+      "vehicleType",
+      VEHICLE_TYPES,
+      "Tipo de veículo",
+    ),
     make: readText(input, "make", "Marca", 60),
     model: readText(input, "model", "Modelo", 60),
     fuelType: readEnum(input, "fuelType", FUEL_TYPES, "Combustível"),
@@ -298,7 +339,10 @@ function vehicleFromInput(
   };
 
   if (year !== undefined) draft.year = Math.round(year);
-  const vin = normalizeVin(readOptionalText(input, "vin", "Chassi (VIN)", 40), "Chassi (VIN)");
+  const vin = normalizeVin(
+    readOptionalText(input, "vin", "Chassi (VIN)", 40),
+    "Chassi (VIN)",
+  );
   if (vin) draft.vin = vin;
   const plate = readOptionalText(input, "plate", "Placa", 20);
   if (plate) draft.plate = plate.toUpperCase();
@@ -311,40 +355,82 @@ function vehicleFromInput(
   );
   if (transmission) draft.transmission = transmission;
 
-  const acquisitionDate = readOptionalDate(input, "acquisitionDate", "Data de aquisição");
+  const acquisitionDate = readOptionalDate(
+    input,
+    "acquisitionDate",
+    "Data de aquisição",
+  );
   if (acquisitionDate) draft.acquisitionDate = acquisitionDate;
-  const leaseEndDate = readOptionalDate(input, "leaseEndDate", "Fim do contrato de locação");
+  const leaseEndDate = readOptionalDate(
+    input,
+    "leaseEndDate",
+    "Fim do contrato de locação",
+  );
   if (leaseEndDate) draft.leaseEndDate = leaseEndDate;
-  const insuranceExpiry = readOptionalDate(input, "insuranceExpiry", "Vencimento do seguro");
+  const insuranceExpiry = readOptionalDate(
+    input,
+    "insuranceExpiry",
+    "Vencimento do seguro",
+  );
   if (insuranceExpiry) draft.insuranceExpiry = insuranceExpiry;
-  const registrationExpiry = readOptionalDate(input, "registrationExpiry", "Vencimento do licenciamento");
+  const registrationExpiry = readOptionalDate(
+    input,
+    "registrationExpiry",
+    "Vencimento do licenciamento",
+  );
   if (registrationExpiry) draft.registrationExpiry = registrationExpiry;
-  const nextServiceDate = readOptionalDate(input, "nextServiceDate", "Próxima revisão");
+  const nextServiceDate = readOptionalDate(
+    input,
+    "nextServiceDate",
+    "Próxima revisão",
+  );
   if (nextServiceDate) draft.nextServiceDate = nextServiceDate;
 
-  const acquisitionCost = readOptionalNumber(input, "acquisitionCost", "Custo de aquisição", {
-    min: 0,
-    max: 100_000_000,
-  });
+  const acquisitionCost = readOptionalNumber(
+    input,
+    "acquisitionCost",
+    "Custo de aquisição",
+    {
+      min: 0,
+      max: 100_000_000,
+    },
+  );
   if (acquisitionCost !== undefined) draft.acquisitionCost = acquisitionCost;
-  const currentValue = readOptionalNumber(input, "currentValue", "Valor atual", {
-    min: 0,
-    max: 100_000_000,
-  });
+  const currentValue = readOptionalNumber(
+    input,
+    "currentValue",
+    "Valor atual",
+    {
+      min: 0,
+      max: 100_000_000,
+    },
+  );
   if (currentValue !== undefined) draft.currentValue = currentValue;
-  const nextServiceOdometer = readOptionalNumber(input, "nextServiceOdometer", "Hodômetro da próxima revisão", {
-    min: 0,
-    max: 5_000_000,
-  });
-  if (nextServiceOdometer !== undefined) draft.nextServiceOdometer = nextServiceOdometer;
+  const nextServiceOdometer = readOptionalNumber(
+    input,
+    "nextServiceOdometer",
+    "Hodômetro da próxima revisão",
+    {
+      min: 0,
+      max: 5_000_000,
+    },
+  );
+  if (nextServiceOdometer !== undefined)
+    draft.nextServiceOdometer = nextServiceOdometer;
 
-  const insurancePolicy = readOptionalText(input, "insurancePolicy", "Apólice do seguro", 80);
+  const insurancePolicy = readOptionalText(
+    input,
+    "insurancePolicy",
+    "Apólice do seguro",
+    80,
+  );
   if (insurancePolicy) draft.insurancePolicy = insurancePolicy;
   const depot = readOptionalText(input, "depot", "Base / pátio", 80);
   if (depot) draft.depot = depot;
 
   const assignedDriverId = input.assignedDriverId;
-  if (assignedDriverId) draft.assignedDriverId = assignedDriverId as Id<"drivers">;
+  if (assignedDriverId)
+    draft.assignedDriverId = assignedDriverId as Id<"drivers">;
 
   if (current?.odometer !== undefined && odometer < current.odometer) {
     throw new ConvexError(
@@ -407,13 +493,22 @@ async function vehicleChanges(
     const from = before[key as string];
     const to = after[key];
     if (key === "assignedDriverId") {
-      const fromName = from ? await driverName(ctx, from as Id<"drivers">, orgId) : undefined;
-      const toName = to ? await driverName(ctx, to as Id<"drivers">, orgId) : undefined;
-      if (fromName !== toName) changes.push({ field: label, from: fromName, to: toName });
+      const fromName = from
+        ? await driverName(ctx, from as Id<"drivers">, orgId)
+        : undefined;
+      const toName = to
+        ? await driverName(ctx, to as Id<"drivers">, orgId)
+        : undefined;
+      if (fromName !== toName)
+        changes.push({ field: label, from: fromName, to: toName });
       continue;
     }
     if (formatChangeValue(from) !== formatChangeValue(to)) {
-      changes.push({ field: label, from: formatChangeValue(from), to: formatChangeValue(to) });
+      changes.push({
+        field: label,
+        from: formatChangeValue(from),
+        to: formatChangeValue(to),
+      });
     }
   }
   return changes;
@@ -476,7 +571,10 @@ export const workspace = query({
         org: null,
         role: null as OrgRole | null,
         members: [],
-        organizations: organizations.map((org) => ({ id: org._id, name: org.name })),
+        organizations: organizations.map((org) => ({
+          id: org._id,
+          name: org.name,
+        })),
       };
     }
 
@@ -500,7 +598,8 @@ export const workspace = query({
         const memberUser = await ctx.db.get(row.userId);
         // O e-mail de um integrante é dado pessoal: quem gere contas (owner e
         // admin) precisa dele, os demais papéis só veem nome e papel.
-        const canSeeEmail = membership.role === "owner" || membership.role === "admin";
+        const canSeeEmail =
+          membership.role === "owner" || membership.role === "admin";
         return {
           membershipId: row._id,
           userId: row.userId,
@@ -571,8 +670,14 @@ export const dashboard = query({
     if (!context) return null;
     const { orgId, org } = context;
 
-    const vehicles = await ctx.db.query("vehicles").withIndex("by_org", (q) => q.eq("orgId", orgId)).take(500);
-    const drivers = await ctx.db.query("drivers").withIndex("by_org", (q) => q.eq("orgId", orgId)).take(500);
+    const vehicles = await ctx.db
+      .query("vehicles")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .take(500);
+    const drivers = await ctx.db
+      .query("drivers")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .take(500);
     const activity = await ctx.db
       .query("activityLog")
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
@@ -581,22 +686,32 @@ export const dashboard = query({
 
     const vehicleByDriver = new Map<string, (typeof vehicles)[number]>();
     for (const vehicle of vehicles) {
-      if (vehicle.assignedDriverId) vehicleByDriver.set(vehicle.assignedDriverId as string, vehicle);
+      if (vehicle.assignedDriverId)
+        vehicleByDriver.set(vehicle.assignedDriverId as string, vehicle);
     }
 
-    const inService = vehicles.filter((v) => v.status !== "retired" && v.status !== "sold");
-    const assignedVehicles = inService.filter((v) => Boolean(v.assignedDriverId));
-    const statusCounts = VEHICLE_STATUSES.reduce<Record<string, number>>((acc, status) => {
-      acc[status] = vehicles.filter((v) => v.status === status).length;
-      return acc;
-    }, {});
+    const inService = vehicles.filter(
+      (v) => v.status !== "retired" && v.status !== "sold",
+    );
+    const assignedVehicles = inService.filter((v) =>
+      Boolean(v.assignedDriverId),
+    );
+    const statusCounts = VEHICLE_STATUSES.reduce<Record<string, number>>(
+      (acc, status) => {
+        acc[status] = vehicles.filter((v) => v.status === status).length;
+        return acc;
+      },
+      {},
+    );
     const typeCounts = VEHICLE_TYPES.map((type) => ({
       label: type,
       count: vehicles.filter((v) => v.vehicleType === type).length,
     })).filter((row) => row.count > 0);
 
     const activeDrivers = drivers.filter((d) => d.status === "active");
-    const unassignedDrivers = activeDrivers.filter((d) => !vehicleByDriver.has(d._id as string));
+    const unassignedDrivers = activeDrivers.filter(
+      (d) => !vehicleByDriver.has(d._id as string),
+    );
 
     const attention: AttentionItem[] = [];
     for (const vehicle of vehicles) {
@@ -610,8 +725,14 @@ export const dashboard = query({
             id: `${vehicle._id}-insurance`,
             kind: "compliance",
             severity,
-            title: days < 0 ? `Seguro da ${label} vencido` : `Seguro da ${label} vence em breve`,
-            detail: days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
+            title:
+              days < 0
+                ? `Seguro da ${label} vencido`
+                : `Seguro da ${label} vence em breve`,
+            detail:
+              days < 0
+                ? `Vencido há ${Math.abs(days)} dia(s)`
+                : `Vence em ${days} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
         }
@@ -624,8 +745,14 @@ export const dashboard = query({
             id: `${vehicle._id}-registration`,
             kind: "compliance",
             severity,
-            title: days < 0 ? `Licenciamento da ${label} vencido` : `Licenciamento da ${label} vence em breve`,
-            detail: days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
+            title:
+              days < 0
+                ? `Licenciamento da ${label} vencido`
+                : `Licenciamento da ${label} vence em breve`,
+            detail:
+              days < 0
+                ? `Vencido há ${Math.abs(days)} dia(s)`
+                : `Vence em ${days} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
         }
@@ -640,7 +767,10 @@ export const dashboard = query({
             detail: `Prevista para há ${Math.abs(daysUntil(vehicle.nextServiceDate))} dia(s)`,
             href: `/vehicles/${vehicle._id}`,
           });
-        } else if (vehicle.nextServiceOdometer && vehicle.odometer >= vehicle.nextServiceOdometer) {
+        } else if (
+          vehicle.nextServiceOdometer &&
+          vehicle.odometer >= vehicle.nextServiceOdometer
+        ) {
           attention.push({
             id: `${vehicle._id}-service-odo`,
             kind: "service",
@@ -669,7 +799,9 @@ export const dashboard = query({
           kind: "status",
           severity: "critical",
           title: `${label} está fora de operação`,
-          detail: vehicle.notes ? vehicle.notes.slice(0, 90) : "Nenhum motivo registrado ainda",
+          detail: vehicle.notes
+            ? vehicle.notes.slice(0, 90)
+            : "Nenhum motivo registrado ainda",
           href: `/vehicles/${vehicle._id}`,
         });
       } else if (
@@ -690,6 +822,14 @@ export const dashboard = query({
     }
 
     for (const driver of drivers) {
+      if (
+        !canSeeDriverPersonalData(
+          context.role,
+          driver.accountUserId,
+          context.userId,
+        )
+      )
+        continue;
       const name = `${driver.firstName} ${driver.lastName}`;
       if (driver.licenseExpiry) {
         const severity = expirySeverity(driver.licenseExpiry);
@@ -699,8 +839,14 @@ export const dashboard = query({
             id: `${driver._id}-license`,
             kind: "compliance",
             severity,
-            title: days < 0 ? `CNH de ${name} vencida` : `CNH de ${name} vence em breve`,
-            detail: days < 0 ? `Vencida há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
+            title:
+              days < 0
+                ? `CNH de ${name} vencida`
+                : `CNH de ${name} vence em breve`,
+            detail:
+              days < 0
+                ? `Vencida há ${Math.abs(days)} dia(s)`
+                : `Vence em ${days} dia(s)`,
             href: `/drivers/${driver._id}`,
           });
         }
@@ -714,7 +860,10 @@ export const dashboard = query({
             kind: "compliance",
             severity,
             title: `Exame tocicódico de ${name} ${days < 0 ? "vencido" : "vence em breve"}`,
-            detail: days < 0 ? `Vencido há ${Math.abs(days)} dia(s)` : `Vence em ${days} dia(s)`,
+            detail:
+              days < 0
+                ? `Vencido há ${Math.abs(days)} dia(s)`
+                : `Vence em ${days} dia(s)`,
             href: `/drivers/${driver._id}`,
           });
         }
@@ -722,7 +871,9 @@ export const dashboard = query({
     }
 
     const severityRank = { critical: 0, warning: 1, info: 2 } as const;
-    attention.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
+    attention.sort(
+      (a, b) => severityRank[a.severity] - severityRank[b.severity],
+    );
 
     // ----------------------------------------------------------------------
     // Manutenção: serviços vencidos/previstos e documentos/impostos a pagar
@@ -735,7 +886,9 @@ export const dashboard = query({
       .query("vehicleDocuments")
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .take(500);
-    const unitLabel = new Map(vehicles.map((v) => [v._id as string, v.unitNumber]));
+    const unitLabel = new Map(
+      vehicles.map((v) => [v._id as string, v.unitNumber]),
+    );
 
     for (const doc of documentRows) {
       if (doc.status === "pago") continue;
@@ -778,10 +931,7 @@ export const dashboard = query({
           detail: `${record.description.slice(0, 60)} — prevista para ${days} dia(s) atrás`,
           href: `/vehicles/${record.vehicleId}#manutencao`,
         });
-      } else if (
-        record.nextServiceOdometer &&
-        record.nextServiceOdometer > 0
-      ) {
+      } else if (record.nextServiceOdometer && record.nextServiceOdometer > 0) {
         const vehicle = vehicles.find((v) => v._id === record.vehicleId);
         if (vehicle && vehicle.odometer >= record.nextServiceOdometer) {
           attention.push({
@@ -796,7 +946,10 @@ export const dashboard = query({
       }
     }
 
-    const acquisitionTotal = vehicles.reduce((sum, v) => sum + (v.acquisitionCost ?? 0), 0);
+    const acquisitionTotal = vehicles.reduce(
+      (sum, v) => sum + (v.acquisitionCost ?? 0),
+      0,
+    );
     const bookValue = vehicles.reduce(
       (sum, v) => sum + (v.currentValue ?? v.acquisitionCost ?? 0),
       0,
@@ -832,9 +985,14 @@ export const dashboard = query({
       },
       odometer: {
         total: odometerTotal,
-        average: vehicles.length ? Math.round(odometerTotal / vehicles.length) : 0,
+        average: vehicles.length
+          ? Math.round(odometerTotal / vehicles.length)
+          : 0,
         highest: vehicles.reduce(
-          (top, v) => (v.odometer > top.odometer ? { unit: v.unitNumber, odometer: v.odometer } : top),
+          (top, v) =>
+            v.odometer > top.odometer
+              ? { unit: v.unitNumber, odometer: v.odometer }
+              : top,
           { unit: "—", odometer: 0 },
         ),
       },
@@ -843,20 +1001,23 @@ export const dashboard = query({
         : 0,
       attention,
       attentionCounts: {
-        critical: attention.filter((item) => item.severity === "critical").length,
+        critical: attention.filter((item) => item.severity === "critical")
+          .length,
         warning: attention.filter((item) => item.severity === "warning").length,
         total: attention.length,
       },
-      recentActivity: activity.map((row) => ({
-        id: row._id,
-        action: row.action as ActivityAction,
-        entity: row.entity as ActivityEntity,
-        entityId: row.entityId ?? null,
-        entityLabel: row.entityLabel,
-        summary: row.summary,
-        actorName: row.actorName,
-        createdAt: row.createdAt,
-      })),
+      recentActivity: activity
+        .map((raw) => visibleActivity(context.role, raw))
+        .map((row) => ({
+          id: row._id,
+          action: row.action as ActivityAction,
+          entity: row.entity as ActivityEntity,
+          entityId: row.entityId ?? null,
+          entityLabel: row.entityLabel,
+          summary: row.summary,
+          actorName: row.actorName,
+          createdAt: row.createdAt,
+        })),
       setup: {
         hasVehicle: vehicles.length > 0,
         hasDriver: drivers.length > 0,
@@ -866,12 +1027,19 @@ export const dashboard = query({
         id: driver._id,
         name: `${driver.firstName} ${driver.lastName}`,
         status: driver.status,
-        vehicleUnit: vehicleByDriver.get(driver._id as string)?.unitNumber ?? null,
+        vehicleUnit:
+          vehicleByDriver.get(driver._id as string)?.unitNumber ?? null,
       })),
       unassignedVehicles: inService
         .filter((v) => !v.assignedDriverId && v.status !== "maintenance")
         .slice(0, 6)
-        .map((v) => ({ id: v._id, unitNumber: v.unitNumber, make: v.make, model: v.model, status: v.status })),
+        .map((v) => ({
+          id: v._id,
+          unitNumber: v.unitNumber,
+          make: v.make,
+          model: v.model,
+          status: v.status,
+        })),
     };
   },
 });
@@ -954,7 +1122,11 @@ export const listVehicles = query({
       .take(500);
 
     const driverIds = Array.from(
-      new Set(vehicles.map((v) => v.assignedDriverId).filter((id): id is Id<"drivers"> => Boolean(id))),
+      new Set(
+        vehicles
+          .map((v) => v.assignedDriverId)
+          .filter((id): id is Id<"drivers"> => Boolean(id)),
+      ),
     );
     // Mesmo cuidado aqui: só entra no mapa o motorista da própria empresa.
     const drivers = await Promise.all(driverIds.map((id) => ctx.db.get(id)));
@@ -973,23 +1145,36 @@ export const listVehicles = query({
     let rows = vehicles.map((vehicle) =>
       toVehicleRow(
         vehicle,
-        vehicle.assignedDriverId ? driverMap.get(vehicle.assignedDriverId as string) ?? null : null,
+        vehicle.assignedDriverId
+          ? (driverMap.get(vehicle.assignedDriverId as string) ?? null)
+          : null,
       ),
     );
 
-    if (args.status && args.status !== "all") rows = rows.filter((row) => row.status === args.status);
+    if (args.status && args.status !== "all")
+      rows = rows.filter((row) => row.status === args.status);
     if (args.driverId) {
       rows = rows.filter((row) => row.assignedDriver?.id === args.driverId);
     }
     if (term) {
       rows = rows.filter((row) =>
-        [row.unitNumber, row.plate, row.vin, row.make, row.model, row.assignedDriver?.name, row.depot]
+        [
+          row.unitNumber,
+          row.plate,
+          row.vin,
+          row.make,
+          row.model,
+          row.assignedDriver?.name,
+          row.depot,
+        ]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(term)),
       );
     }
 
-    rows.sort((a, b) => a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true }));
+    rows.sort((a, b) =>
+      a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true }),
+    );
     const limit = Math.min(args.limit ?? 100, 500);
     return { rows: rows.slice(0, limit), total: rows.length };
   },
@@ -1006,12 +1191,17 @@ export const vehicleDetail = query({
     // O veículo já passou pela checagem de orgId acima, mas o motorista vinculado
     // é buscado por id: reconferimos a empresa para que uma referência corrompida
     // (ou um bug de escrita) nunca exponha prontuário de outra empresa.
-    const linked = vehicle.assignedDriverId ? await ctx.db.get(vehicle.assignedDriverId) : null;
+    const linked = vehicle.assignedDriverId
+      ? await ctx.db.get(vehicle.assignedDriverId)
+      : null;
     const driver = linked && linked.orgId === context.orgId ? linked : null;
     const activity = await ctx.db
       .query("activityLog")
       .withIndex("by_record", (q) =>
-        q.eq("orgId", context.orgId).eq("entity", "vehicle").eq("entityId", args.vehicleId as string),
+        q
+          .eq("orgId", context.orgId)
+          .eq("entity", "vehicle")
+          .eq("entityId", args.vehicleId as string),
       )
       .order("desc")
       .take(40);
@@ -1028,14 +1218,20 @@ export const vehicleDetail = query({
     // Contato e CNH do motorista vinculado são dado pessoal: valem só para quem
     // tem acesso ao prontuário dele (ver access.ts).
     const canSeeDriverContact = driver
-      ? canSeeDriverPersonalData(context.role, driver.email, context.email)
+      ? canSeeDriverPersonalData(
+          context.role,
+          driver.accountUserId,
+          context.userId,
+        )
       : true;
 
     return {
       vehicle: {
         ...toVehicleRow(
           vehicle,
-          driver ? { id: driver._id, name: `${driver.firstName} ${driver.lastName}` } : null,
+          driver
+            ? { id: driver._id, name: `${driver.firstName} ${driver.lastName}` }
+            : null,
         ),
         insurancePolicy: vehicle.insurancePolicy ?? null,
         acquisitionDate: vehicle.acquisitionDate ?? null,
@@ -1052,23 +1248,28 @@ export const vehicleDetail = query({
             email: canSeeDriverContact ? (driver.email ?? null) : null,
             status: driver.status,
             licenseNumber: canSeeDriverContact ? driver.licenseNumber : "",
-            licenseExpiry: canSeeDriverContact ? (driver.licenseExpiry ?? null) : null,
+            licenseExpiry: canSeeDriverContact
+              ? (driver.licenseExpiry ?? null)
+              : null,
           }
         : null,
-      activity: activity.map((row) => ({
-        id: row._id,
-        action: row.action as ActivityAction,
-        summary: row.summary,
-        actorName: row.actorName,
-        changes: row.changes ?? [],
-        createdAt: row.createdAt,
-      })),
+      activity: activity
+        .map((raw) => visibleActivity(context.role, raw))
+        .map((row) => ({
+          id: row._id,
+          action: row.action as ActivityAction,
+          summary: row.summary,
+          actorName: row.actorName,
+          changes: row.changes ?? [],
+          createdAt: row.createdAt,
+        })),
       driverOptions: activeDrivers.map((row) => ({
         id: row._id,
         name: `${row.firstName} ${row.lastName}`,
         status: row.status,
         assignedUnit:
-          otherVehicles.find((v) => v.assignedDriverId === row._id)?.unitNumber ?? null,
+          otherVehicles.find((v) => v.assignedDriverId === row._id)
+            ?.unitNumber ?? null,
       })),
     };
   },
@@ -1078,32 +1279,49 @@ export const createVehicle = mutation({
   args: { ...vehicleInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite cadastrar veículos.");
+    requireRole(
+      context.role,
+      FLEET_WRITE_ROLES,
+      "Seu papel não permite cadastrar veículos.",
+    );
     await limit(ctx, context.orgId, "createVehicle");
 
     const clean = vehicleFromInput(args as unknown as Record<string, unknown>);
 
     const duplicateUnit = await ctx.db
       .query("vehicles")
-      .withIndex("by_org_unit", (q) => q.eq("orgId", context.orgId).eq("unitNumber", clean.unitNumber))
+      .withIndex("by_org_unit", (q) =>
+        q.eq("orgId", context.orgId).eq("unitNumber", clean.unitNumber),
+      )
       .first();
     if (duplicateUnit) {
-      throw new ConvexError(`A unidade ${clean.unitNumber} já existe no seu registro.`);
+      throw new ConvexError(
+        `A unidade ${clean.unitNumber} já existe no seu registro.`,
+      );
     }
     if (clean.vin) {
       const duplicateVin = await ctx.db
         .query("vehicles")
-        .withIndex("by_org_vin", (q) => q.eq("orgId", context.orgId).eq("vin", clean.vin!))
+        .withIndex("by_org_vin", (q) =>
+          q.eq("orgId", context.orgId).eq("vin", clean.vin!),
+        )
         .first();
-      if (duplicateVin) throw new ConvexError("Esse chassi (VIN) já está cadastrado em outra unidade.");
+      if (duplicateVin)
+        throw new ConvexError(
+          "Esse chassi (VIN) já está cadastrado em outra unidade.",
+        );
     }
     if (clean.plate) {
       const duplicatePlate = await ctx.db
         .query("vehicles")
-        .withIndex("by_org_plate", (q) => q.eq("orgId", context.orgId).eq("plate", clean.plate!))
+        .withIndex("by_org_plate", (q) =>
+          q.eq("orgId", context.orgId).eq("plate", clean.plate!),
+        )
         .first();
       if (duplicatePlate) {
-        throw new ConvexError(`A placa ${clean.plate} já é usada pela unidade ${duplicatePlate.unitNumber}.`);
+        throw new ConvexError(
+          `A placa ${clean.plate} já é usada pela unidade ${duplicatePlate.unitNumber}.`,
+        );
       }
     }
     if (clean.assignedDriverId) {
@@ -1141,7 +1359,11 @@ export const updateVehicle = mutation({
   args: { vehicleId: v.id("vehicles"), ...vehicleInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite editar veículos.");
+    requireRole(
+      context.role,
+      FLEET_WRITE_ROLES,
+      "Seu papel não permite editar veículos.",
+    );
 
     const existing = await ctx.db.get(args.vehicleId);
     if (!existing || existing.orgId !== context.orgId) {
@@ -1155,24 +1377,34 @@ export const updateVehicle = mutation({
 
     const duplicateUnit = await ctx.db
       .query("vehicles")
-      .withIndex("by_org_unit", (q) => q.eq("orgId", context.orgId).eq("unitNumber", clean.unitNumber))
+      .withIndex("by_org_unit", (q) =>
+        q.eq("orgId", context.orgId).eq("unitNumber", clean.unitNumber),
+      )
       .first();
     if (duplicateUnit && duplicateUnit._id !== existing._id) {
-      throw new ConvexError(`A unidade ${clean.unitNumber} já existe no seu registro.`);
+      throw new ConvexError(
+        `A unidade ${clean.unitNumber} já existe no seu registro.`,
+      );
     }
     if (clean.vin && clean.vin !== existing.vin) {
       const duplicateVin = await ctx.db
         .query("vehicles")
-        .withIndex("by_org_vin", (q) => q.eq("orgId", context.orgId).eq("vin", clean.vin!))
+        .withIndex("by_org_vin", (q) =>
+          q.eq("orgId", context.orgId).eq("vin", clean.vin!),
+        )
         .first();
       if (duplicateVin && duplicateVin._id !== existing._id) {
-        throw new ConvexError("Esse chassi (VIN) já está cadastrado em outra unidade.");
+        throw new ConvexError(
+          "Esse chassi (VIN) já está cadastrado em outra unidade.",
+        );
       }
     }
     if (clean.plate && clean.plate !== existing.plate) {
       const duplicatePlate = await ctx.db
         .query("vehicles")
-        .withIndex("by_org_plate", (q) => q.eq("orgId", context.orgId).eq("plate", clean.plate!))
+        .withIndex("by_org_plate", (q) =>
+          q.eq("orgId", context.orgId).eq("plate", clean.plate!),
+        )
         .first();
       if (duplicatePlate && duplicatePlate._id !== existing._id) {
         throw new ConvexError(
@@ -1190,11 +1422,16 @@ export const updateVehicle = mutation({
     // One driver runs one unit. If the chosen driver is currently on another
     // vehicle, release that vehicle first — otherwise the driver would be
     // linked to two units at once and the register would disagree with itself.
-    if (clean.assignedDriverId && clean.assignedDriverId !== existing.assignedDriverId) {
+    if (
+      clean.assignedDriverId &&
+      clean.assignedDriverId !== existing.assignedDriverId
+    ) {
       const previousHolders = await ctx.db
         .query("vehicles")
         .withIndex("by_org_driver", (q) =>
-          q.eq("orgId", context.orgId).eq("assignedDriverId", clean.assignedDriverId!),
+          q
+            .eq("orgId", context.orgId)
+            .eq("assignedDriverId", clean.assignedDriverId!),
         )
         .take(10);
       for (const holder of previousHolders) {
@@ -1214,7 +1451,11 @@ export const updateVehicle = mutation({
       (clean.status === "available" || clean.status === "active")
     ) {
       clean.status = "assigned";
-    } else if (!clean.assignedDriverId && existing.assignedDriverId && clean.status === "assigned") {
+    } else if (
+      !clean.assignedDriverId &&
+      existing.assignedDriverId &&
+      clean.status === "assigned"
+    ) {
       clean.status = "available";
     }
 
@@ -1238,7 +1479,8 @@ export const updateVehicle = mutation({
       "depot",
       "notes",
     ]) {
-      if ((clean as Record<string, unknown>)[key] === undefined) patch[key] = undefined;
+      if ((clean as Record<string, unknown>)[key] === undefined)
+        patch[key] = undefined;
     }
 
     const changes = await vehicleChanges(
@@ -1254,7 +1496,11 @@ export const updateVehicle = mutation({
       orgId: context.orgId,
       userId: context.userId,
       actorName: context.actorName,
-      action: statusChanged ? "status_change" : changes.some((c) => c.field === "Motorista vinculado") ? "assign" : "update",
+      action: statusChanged
+        ? "status_change"
+        : changes.some((c) => c.field === "Motorista vinculado")
+          ? "assign"
+          : "update",
       entity: "vehicle",
       entityId: existing._id as string,
       entityLabel: `Unidade ${clean.unitNumber}`,
@@ -1272,7 +1518,11 @@ export const deleteVehicle = mutation({
   args: { vehicleId: v.id("vehicles") },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode excluir veículos.");
+    requireRole(
+      context.role,
+      COMPANY_ROLES,
+      "Somente proprietário ou administrador pode excluir veículos.",
+    );
 
     const vehicle = await ctx.db.get(args.vehicleId);
     if (!vehicle || vehicle.orgId !== context.orgId) {
@@ -1287,13 +1537,13 @@ export const deleteVehicle = mutation({
       .withIndex("by_org_vehicle", (q) =>
         q.eq("orgId", context.orgId).eq("vehicleId", vehicle._id),
       )
-      .take(500);
+      .collect();
     const documentRows = await ctx.db
       .query("vehicleDocuments")
       .withIndex("by_org_vehicle", (q) =>
         q.eq("orgId", context.orgId).eq("vehicleId", vehicle._id),
       )
-      .take(500);
+      .collect();
 
     for (const row of maintenanceRows) await ctx.db.delete(row._id);
     for (const row of documentRows) await ctx.db.delete(row._id);
@@ -1335,14 +1585,150 @@ const DEMO_VEHICLES: {
   registrationOffset: number;
   serviceOffset: number;
 }[] = [
-  { unitNumber: "101", vehicleType: "truck", make: "Volvo", model: "FH 500", year: 2021, vin: "YV496387452100987", plate: "SPP-1012", fuelType: "diesel", odometer: 412500, acquisitionCost: 238000, currentValue: 142000, status: "assigned", depot: "Galpão Centro", insuranceOffset: 210, registrationOffset: 96, serviceOffset: 18 },
-  { unitNumber: "102", vehicleType: "truck", make: "Mercedes-Benz", model: "Actros 1848", year: 2022, vin: "WDDGF4JP6JR9187654", plate: "SPP-2071", fuelType: "diesel", odometer: 288900, acquisitionCost: 276000, currentValue: 171000, status: "assigned", depot: "Galpão Centro", insuranceOffset: 12, registrationOffset: 240, serviceOffset: 40 },
-  { unitNumber: "103", vehicleType: "truck", make: "Scania", model: "S530", year: 2020, vin: "FT5127839480178765", plate: "SPP-3045", fuelType: "diesel", odometer: 521300, acquisitionCost: 229000, currentValue: 101000, status: "maintenance", depot: "Pátio Norte", insuranceOffset: 150, registrationOffset: 20, serviceOffset: -6 },
-  { unitNumber: "104", vehicleType: "van", make: "Ford", model: "Transit 2.4", year: 2023, vin: "WF0LTHBS5DPA123456", plate: "SPP-4783", fuelType: "diesel", odometer: 62400, acquisitionCost: 142000, currentValue: 98000, status: "assigned", depot: "Base Metropolitana", insuranceOffset: 320, registrationOffset: 300, serviceOffset: 55 },
-  { unitNumber: "105", vehicleType: "pickup", make: "Toyota", model: "Hilux 4x4", year: 2022, vin: "NM0AD0772BA1234567", plate: "SPP-5528", fuelType: "diesel", odometer: 98700, acquisitionCost: 186000, currentValue: 112000, status: "available", depot: "Base Metropolitana", insuranceOffset: 88, registrationOffset: 150, serviceOffset: 30 },
-  { unitNumber: "106", vehicleType: "truck", make: "International", model: "HT7100", year: 2019, vin: "IM1FP3DJ3LA9890123", plate: "SPP-6020", fuelType: "diesel", odometer: 688400, acquisitionCost: 187000, currentValue: 71000, status: "out_of_service", depot: "Pátio Norte", insuranceOffset: -9, registrationOffset: 60, serviceOffset: -21 },
-  { unitNumber: "107", vehicleType: "van", make: "Mercedes-Benz", model: "Sprinter 313 CDI", year: 2024, vin: "WDDGF3BG4MR0456123", plate: "SPP-7394", fuelType: "diesel", odometer: 21850, acquisitionCost: 198000, currentValue: 181000, status: "assigned", depot: "Base Metropolitana", insuranceOffset: 400, registrationOffset: 380, serviceOffset: 80 },
-  { unitNumber: "108", vehicleType: "trailer", make: "Great Dane", model: "Everest 53", year: 2020, vin: "1GYS2KEC7CL1123456", plate: "SPP-8112", fuelType: "diesel", odometer: 0, acquisitionCost: 42000, currentValue: 31000, status: "available", depot: "Galpão Centro", insuranceOffset: 200, registrationOffset: 44, serviceOffset: 120 },
+  {
+    unitNumber: "101",
+    vehicleType: "truck",
+    make: "Volvo",
+    model: "FH 500",
+    year: 2021,
+    vin: "9ZZ00000000000101",
+    plate: "SPP-1012",
+    fuelType: "diesel",
+    odometer: 412500,
+    acquisitionCost: 238000,
+    currentValue: 142000,
+    status: "assigned",
+    depot: "Galpão Centro",
+    insuranceOffset: 210,
+    registrationOffset: 96,
+    serviceOffset: 18,
+  },
+  {
+    unitNumber: "102",
+    vehicleType: "truck",
+    make: "Mercedes-Benz",
+    model: "Actros 1848",
+    year: 2022,
+    vin: "9ZZ00000000000102",
+    plate: "SPP-2071",
+    fuelType: "diesel",
+    odometer: 288900,
+    acquisitionCost: 276000,
+    currentValue: 171000,
+    status: "assigned",
+    depot: "Galpão Centro",
+    insuranceOffset: 12,
+    registrationOffset: 240,
+    serviceOffset: 40,
+  },
+  {
+    unitNumber: "103",
+    vehicleType: "truck",
+    make: "Scania",
+    model: "S530",
+    year: 2020,
+    vin: "9ZZ00000000000103",
+    plate: "SPP-3045",
+    fuelType: "diesel",
+    odometer: 521300,
+    acquisitionCost: 229000,
+    currentValue: 101000,
+    status: "maintenance",
+    depot: "Pátio Norte",
+    insuranceOffset: 150,
+    registrationOffset: 20,
+    serviceOffset: -6,
+  },
+  {
+    unitNumber: "104",
+    vehicleType: "van",
+    make: "Ford",
+    model: "Transit 2.4",
+    year: 2023,
+    vin: "9ZZ00000000000104",
+    plate: "SPP-4783",
+    fuelType: "diesel",
+    odometer: 62400,
+    acquisitionCost: 142000,
+    currentValue: 98000,
+    status: "assigned",
+    depot: "Base Metropolitana",
+    insuranceOffset: 320,
+    registrationOffset: 300,
+    serviceOffset: 55,
+  },
+  {
+    unitNumber: "105",
+    vehicleType: "pickup",
+    make: "Toyota",
+    model: "Hilux 4x4",
+    year: 2022,
+    vin: "9ZZ00000000000105",
+    plate: "SPP-5528",
+    fuelType: "diesel",
+    odometer: 98700,
+    acquisitionCost: 186000,
+    currentValue: 112000,
+    status: "available",
+    depot: "Base Metropolitana",
+    insuranceOffset: 88,
+    registrationOffset: 150,
+    serviceOffset: 30,
+  },
+  {
+    unitNumber: "106",
+    vehicleType: "truck",
+    make: "International",
+    model: "HT7100",
+    year: 2019,
+    vin: "9ZZ00000000000106",
+    plate: "SPP-6020",
+    fuelType: "diesel",
+    odometer: 688400,
+    acquisitionCost: 187000,
+    currentValue: 71000,
+    status: "out_of_service",
+    depot: "Pátio Norte",
+    insuranceOffset: -9,
+    registrationOffset: 60,
+    serviceOffset: -21,
+  },
+  {
+    unitNumber: "107",
+    vehicleType: "van",
+    make: "Mercedes-Benz",
+    model: "Sprinter 313 CDI",
+    year: 2024,
+    vin: "9ZZ00000000000107",
+    plate: "SPP-7394",
+    fuelType: "diesel",
+    odometer: 21850,
+    acquisitionCost: 198000,
+    currentValue: 181000,
+    status: "assigned",
+    depot: "Base Metropolitana",
+    insuranceOffset: 400,
+    registrationOffset: 380,
+    serviceOffset: 80,
+  },
+  {
+    unitNumber: "108",
+    vehicleType: "trailer",
+    make: "Great Dane",
+    model: "Everest 53",
+    year: 2020,
+    vin: "9ZZ00000000000108",
+    plate: "SPP-8112",
+    fuelType: "diesel",
+    odometer: 0,
+    acquisitionCost: 42000,
+    currentValue: 31000,
+    status: "available",
+    depot: "Galpão Centro",
+    insuranceOffset: 200,
+    registrationOffset: 44,
+    serviceOffset: 120,
+  },
 ];
 
 const DEMO_DRIVERS: {
@@ -1361,27 +1747,125 @@ const DEMO_DRIVERS: {
   rate: number;
   unit?: string;
 }[] = [
-  { firstName: "Ricardo", lastName: "D'Almeida", phone: "(11) 96521-8847", email: "ricardo.dalmeida@exemplo.com.br", city: "São Paulo", licenseNumber: "SP-14825796", licenseClass: "A", licenseOffset: 420, medicalOffset: 190, hireOffset: -1450, status: "active", compensationModel: "por_km", rate: 0.62, unit: "101" },
-  { firstName: "Gabriela", lastName: "Machado", phone: "(21) 98254-0193", email: "gabriela.machado@exemplo.com.br", city: "Rio de Janeiro", licenseNumber: "SP-25741099", licenseClass: "A", licenseOffset: 18, medicalOffset: 42, hireOffset: -980, status: "active", compensationModel: "por_km", rate: 0.64, unit: "102" },
-  { firstName: "Carlos", lastName: "Sousa", phone: "(31) 99102-7742", email: "carlos.sousa@exemplo.com.br", city: "Belo Horizonte", licenseNumber: "SP-37610884", licenseClass: "A", licenseOffset: -12, medicalOffset: 25, hireOffset: -2200, status: "active", compensationModel: "por_hora", rate: 34, unit: "104" },
-  { firstName: "Sofia", lastName: "Marchetti", phone: "(11) 97348-6166", email: "sofia.marchetti@exemplo.com.br", city: "São Paulo", licenseNumber: "SP-48922105", licenseClass: "B", licenseOffset: 260, medicalOffset: 150, hireOffset: -640, status: "active", compensationModel: "salario", rate: 78000, unit: "107" },
-  { firstName: "Gustavo", lastName: "Pereira", phone: "(19) 98783-7781", email: "gustavo.pereira@exemplo.com.br", city: "Campinas", licenseNumber: "SP-59502112", licenseClass: "A", licenseOffset: 132, medicalOffset: 38, hireOffset: -3100, status: "on_leave", compensationModel: "por_viagem", rate: 210 },
-  { firstName: "Elena", lastName: "Vargas", phone: "(51) 98431-5221", email: "elena.vargas@exemplo.com.br", city: "Porto Alegre", licenseNumber: "SP-61095638", licenseClass: "C", licenseOffset: 96, medicalOffset: 88, hireOffset: -320, status: "active", compensationModel: "por_hora", rate: 29 },
+  {
+    firstName: "Ricardo",
+    lastName: "D'Almeida",
+    phone: "(11) 96521-8847",
+    email: "ricardo.dalmeida@exemplo.com.br",
+    city: "São Paulo",
+    licenseNumber: "SP-14825796",
+    licenseClass: "A",
+    licenseOffset: 420,
+    medicalOffset: 190,
+    hireOffset: -1450,
+    status: "active",
+    compensationModel: "per_mile",
+    rate: 0.62,
+    unit: "101",
+  },
+  {
+    firstName: "Gabriela",
+    lastName: "Machado",
+    phone: "(21) 98254-0193",
+    email: "gabriela.machado@exemplo.com.br",
+    city: "Rio de Janeiro",
+    licenseNumber: "SP-25741099",
+    licenseClass: "A",
+    licenseOffset: 18,
+    medicalOffset: 42,
+    hireOffset: -980,
+    status: "active",
+    compensationModel: "per_mile",
+    rate: 0.64,
+    unit: "102",
+  },
+  {
+    firstName: "Carlos",
+    lastName: "Sousa",
+    phone: "(31) 99102-7742",
+    email: "carlos.sousa@exemplo.com.br",
+    city: "Belo Horizonte",
+    licenseNumber: "SP-37610884",
+    licenseClass: "A",
+    licenseOffset: -12,
+    medicalOffset: 25,
+    hireOffset: -2200,
+    status: "active",
+    compensationModel: "hourly",
+    rate: 34,
+    unit: "104",
+  },
+  {
+    firstName: "Sofia",
+    lastName: "Marchetti",
+    phone: "(11) 97348-6166",
+    email: "sofia.marchetti@exemplo.com.br",
+    city: "São Paulo",
+    licenseNumber: "SP-48922105",
+    licenseClass: "B",
+    licenseOffset: 260,
+    medicalOffset: 150,
+    hireOffset: -640,
+    status: "active",
+    compensationModel: "salary",
+    rate: 78000,
+    unit: "107",
+  },
+  {
+    firstName: "Gustavo",
+    lastName: "Pereira",
+    phone: "(19) 98783-7781",
+    email: "gustavo.pereira@exemplo.com.br",
+    city: "Campinas",
+    licenseNumber: "SP-59502112",
+    licenseClass: "A",
+    licenseOffset: 132,
+    medicalOffset: 38,
+    hireOffset: -3100,
+    status: "on_leave",
+    compensationModel: "per_trip",
+    rate: 210,
+  },
+  {
+    firstName: "Elena",
+    lastName: "Vargas",
+    phone: "(51) 98431-5221",
+    email: "elena.vargas@exemplo.com.br",
+    city: "Porto Alegre",
+    licenseNumber: "SP-61095638",
+    licenseClass: "C",
+    licenseOffset: 96,
+    medicalOffset: 88,
+    hireOffset: -320,
+    status: "active",
+    compensationModel: "hourly",
+    rate: 29,
+  },
 ];
 
 export const seedDemoFleet = mutation({
   args: {},
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite carregar dados de exemplo na frota.");
+    requireRole(
+      context.role,
+      FLEET_WRITE_ROLES,
+      "Seu papel não permite carregar dados de exemplo na frota.",
+    );
     await limit(ctx, context.orgId, "seed");
 
     const existingVehicles = await ctx.db
       .query("vehicles")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
       .take(1);
-    if (existingVehicles.length) {
-      throw new ConvexError("Seu cadastro já possui veículos. Limpe-os antes de carregar exemplos.");
+    const existingDriver = await ctx.db
+      .query("drivers")
+      .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
+      .first();
+    if (existingVehicles.length || existingDriver) {
+      throw new ConvexError(
+        "Seu cadastro já possui veículos ou motoristas. Use exemplos apenas em uma empresa vazia.",
+      );
     }
 
     const now = Date.now();
@@ -1438,7 +1922,9 @@ export const seedDemoFleet = mutation({
         medicalExpiry: now + sample.medicalOffset * DAY,
         hireDate: now + sample.hireOffset * DAY,
         status: sample.status as Infer<typeof driverStatusValidator>,
-        compensationModel: sample.compensationModel as Infer<typeof compensationValidator>,
+        compensationModel: sample.compensationModel as Infer<
+          typeof compensationValidator
+        >,
         rate: sample.rate,
         depot: undefined,
         createdBy: context.userId,
@@ -1462,7 +1948,10 @@ export const seedDemoFleet = mutation({
         (row) => row.licenseNumber === sample.licenseNumber,
       );
       if (!driver) continue;
-      await ctx.db.patch(vehicleId, { assignedDriverId: driver._id, updatedAt: now });
+      await ctx.db.patch(vehicleId, {
+        assignedDriverId: driver._id,
+        updatedAt: now,
+      });
     }
 
     await logActivity(ctx, {
@@ -1484,33 +1973,37 @@ export const clearFleetData = mutation({
   args: {},
   handler: async (ctx) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode limpar os dados da frota.");
+    requireRole(
+      context.role,
+      COMPANY_ROLES,
+      "Somente proprietário ou administrador pode limpar os dados da frota.",
+    );
     // Operação destrutiva e pesada: cota baixa para não virar script de teste massivo.
     await limit(ctx, context.orgId, "bulk");
 
     const vehicles = await ctx.db
       .query("vehicles")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(500);
+      .collect();
     const drivers = await ctx.db
       .query("drivers")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(500);
+      .collect();
     const activity = await ctx.db
       .query("activityLog")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(500);
+      .collect();
     // Registros filhos costumavam sobreviver a esta limpeza: histórico de serviços, peças, custos,
     // fornecedores e valores de impostos ficavam no banco depois que o usuário pediu
     // para limpar tudo — o que tornava a copia na tela de dados falsa.
-       const maintenance = await ctx.db
+    const maintenance = await ctx.db
       .query("maintenanceRecords")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(500);
+      .collect();
     const documents = await ctx.db
       .query("vehicleDocuments")
       .withIndex("by_org", (q) => q.eq("orgId", context.orgId))
-      .take(500);
+      .collect();
 
     for (const vehicle of vehicles) await ctx.db.delete(vehicle._id);
     for (const driver of drivers) await ctx.db.delete(driver._id);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { canSeeDriverPersonalData } from "./access";
-import { canSeeCompensation, requireRole } from "./fleet";
-import { COMPENSATION_ROLES, OWNER_ROLES, TEAM_ROLES } from "./constants";
+import { canSeeDriverPersonalData } from "../convex/access";
+import { canSeeCompensation, requireRole } from "../convex/fleet";
+import { COMPENSATION_ROLES, OWNER_ROLES, TEAM_ROLES } from "../convex/constants";
 
 /**
  * Testes das regras de autorização.
@@ -25,8 +25,8 @@ describe("canSeeDriverPersonalData", () => {
     expect(canSeeDriverPersonalData("driver", "eu@empresa.com", "colega@empresa.com")).toBe(false);
   });
 
-  it("ignora maiúsculas e espaços nos dois e-mails", () => {
-    expect(canSeeDriverPersonalData("driver", "  EU@Empresa.COM ", "eu@empresa.com")).toBe(true);
+  it("identificadores diferenciam maiúsculas e minúsculas", () => {
+    expect(canSeeDriverPersonalData("driver", "UserA", "usera")).toBe(false);
   });
 
   it("nega quando falta e-mail dos dois lados — o padrão é negar", () => {

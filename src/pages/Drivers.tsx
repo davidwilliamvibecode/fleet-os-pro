@@ -178,7 +178,7 @@ export default function DriversPage() {
             <EmptyNote
               icon={IdCard}
               title="Nenhum motorista na equipe ainda"
-              description="Cadastre seus motoristas para registrar CNH, credenciais, modelo de remuneração e a unidade que cada um opera. O Fleet Command avisa antes de qualquer renovação virar problema."
+              description="Cadastre seus motoristas para registrar CNH, credenciais, modelo de remuneração e a unidade que cada um opera. O Fleet OS Pro avisa antes de qualquer renovação virar problema."
               action={
                 canEdit ? (
                   <Button className="gap-2" onClick={() => setFormOpen(true)}>

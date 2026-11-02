@@ -17,7 +17,7 @@ export const roleValidator = v.union(
 export type Role = Infer<typeof roleValidator>;
 
 /* -------------------------------------------------------------------------- */
-/*  Fleet Command validators                                                  */
+/*  Fleet OS Pro validators                                                  */
 /*  Kept explicit (not derived) so `Doc<>` types stay narrow in the frontend.  */
 /* -------------------------------------------------------------------------- */
 
@@ -174,6 +174,8 @@ const schema = defineSchema(
       phoneVerificationTime: v.optional(v.number()),
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
+      termsAcceptedAt: v.optional(v.number()),
+      legalVersion: v.optional(v.string()),
       role: v.optional(roleValidator), // role of the user. do not remove
     })
       .index("email", ["email"]) // index for the email. do not remove or modify
@@ -258,6 +260,7 @@ const schema = defineSchema(
     /** The driver roster. Vehicle assignment lives on the vehicle record. */
     drivers: defineTable({
       orgId: v.id("organizations"),
+      accountUserId: v.optional(v.id("users")),
       firstName: v.string(),
       lastName: v.string(),
       phone: v.optional(v.string()),

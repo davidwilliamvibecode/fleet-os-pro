@@ -1,3 +1,5 @@
+import type { Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { limit } from "./limits";
@@ -15,7 +17,7 @@ import {
   requireRole,
 } from "./fleet";
 import { COMPANY_ROLES, DRIVER_STATUSES, FLEET_WRITE_ROLES } from "./constants";
-import { canSeeDriverPersonalData } from "./access";
+import { canSeeDriverPersonalData, visibleActivity } from "./access";
 import {
   compensationValidator,
   driverStatusValidator,
@@ -27,8 +29,6 @@ import {
 /*  Vehicle assignment lives on the vehicle record, so both sides always      */
 /*  agree on who is running which unit.                                       */
 /* -------------------------------------------------------------------------- */
-
-
 
 export const driverInput = {
   firstName: v.string(),
@@ -113,21 +113,42 @@ function driverFromInput(input: Record<string, unknown>): CleanDriver {
   if (addressLine) draft.addressLine = addressLine;
   const city = readOptionalText(input, "city", "Cidade", 80);
   if (city) draft.city = city;
-  const licenseClass = readOptionalText(input, "licenseClass", "Categoria da CNH", 20);
+  const licenseClass = readOptionalText(
+    input,
+    "licenseClass",
+    "Categoria da CNH",
+    20,
+  );
   if (licenseClass) draft.licenseClass = licenseClass;
   const depot = readOptionalText(input, "depot", "Base / pátio", 80);
   if (depot) draft.depot = depot;
 
-  const licenseExpiry = readOptionalDate(input, "licenseExpiry", "Validade da CNH");
+  const licenseExpiry = readOptionalDate(
+    input,
+    "licenseExpiry",
+    "Validade da CNH",
+  );
   if (licenseExpiry) draft.licenseExpiry = licenseExpiry;
-  const medicalExpiry = readOptionalDate(input, "medicalExpiry", "Validade do exame toxicológico");
+  const medicalExpiry = readOptionalDate(
+    input,
+    "medicalExpiry",
+    "Validade do exame toxicológico",
+  );
   if (medicalExpiry) draft.medicalExpiry = medicalExpiry;
   const hireDate = readOptionalDate(input, "hireDate", "Data de admissão");
   if (hireDate) draft.hireDate = hireDate;
 
-  const rate = readOptionalNumber(input, "rate", "Valor da remuneração", { min: 0, max: 10_000_000 });
+  const rate = readOptionalNumber(input, "rate", "Valor da remuneração", {
+    min: 0,
+    max: 10_000_000,
+  });
   if (rate !== undefined) draft.rate = rate;
-  const emergencyContactName = readOptionalText(input, "emergencyContactName", "Contato de emergência", 120);
+  const emergencyContactName = readOptionalText(
+    input,
+    "emergencyContactName",
+    "Contato de emergência",
+    120,
+  );
   if (emergencyContactName) draft.emergencyContactName = emergencyContactName;
   const emergencyContactPhone = readOptionalText(
     input,
@@ -135,7 +156,8 @@ function driverFromInput(input: Record<string, unknown>): CleanDriver {
     "Telefone do contato de emergência",
     40,
   );
-  if (emergencyContactPhone) draft.emergencyContactPhone = emergencyContactPhone;
+  if (emergencyContactPhone)
+    draft.emergencyContactPhone = emergencyContactPhone;
 
   return draft;
 }
@@ -166,7 +188,11 @@ export const listDrivers = query({
     const term = (args.search ?? "").trim().toLowerCase();
     let rows = drivers.map((driver) => {
       const assignment = assignmentByDriver.get(driver._id as string) ?? null;
-      const personal = canSeeDriverPersonalData(context.role, driver.email, context.email);
+      const personal = canSeeDriverPersonalData(
+        context.role,
+        driver.accountUserId,
+        context.userId,
+      );
       return {
         id: driver._id,
         firstName: driver.firstName,
@@ -185,7 +211,9 @@ export const listDrivers = query({
         // Payroll data: only the roles that run the numbers get the figure, and
         // um motorista só vê o próprio valor.
         rate:
-          personal && canSeeCompensation(context.role) ? (driver.rate ?? null) : null,
+          personal && canSeeCompensation(context.role)
+            ? (driver.rate ?? null)
+            : null,
         depot: personal ? (driver.depot ?? null) : null,
         notes: personal ? (driver.notes ?? null) : null,
         vehicleUnit: assignment?.unitNumber ?? null,
@@ -195,7 +223,8 @@ export const listDrivers = query({
       };
     });
 
-    if (args.status && args.status !== "all") rows = rows.filter((row) => row.status === args.status);
+    if (args.status && args.status !== "all")
+      rows = rows.filter((row) => row.status === args.status);
     if (term) {
       rows = rows.filter((row) =>
         [row.name, row.phone, row.email, row.licenseNumber, row.vehicleUnit]
@@ -204,7 +233,11 @@ export const listDrivers = query({
       );
     }
 
-    rows.sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+    rows.sort(
+      (a, b) =>
+        a.lastName.localeCompare(b.lastName) ||
+        a.firstName.localeCompare(b.firstName),
+    );
     return { rows, total: rows.length };
   },
 });
@@ -217,7 +250,14 @@ export const driverDetail = query({
     const driver = await ctx.db.get(args.driverId);
     if (!driver || driver.orgId !== context.orgId) return null;
     // O prontuário completo é dado pessoal: um motorista não abre o do colega.
-    if (!canSeeDriverPersonalData(context.role, driver.email, context.email)) return null;
+    if (
+      !canSeeDriverPersonalData(
+        context.role,
+        driver.accountUserId,
+        context.userId,
+      )
+    )
+      return null;
 
     const assignment = await ctx.db
       .query("vehicles")
@@ -229,7 +269,10 @@ export const driverDetail = query({
     const activity = await ctx.db
       .query("activityLog")
       .withIndex("by_record", (q) =>
-        q.eq("orgId", context.orgId).eq("entity", "driver").eq("entityId", args.driverId as string),
+        q
+          .eq("orgId", context.orgId)
+          .eq("entity", "driver")
+          .eq("entityId", args.driverId as string),
       )
       .order("desc")
       .take(40);
@@ -274,29 +317,57 @@ export const driverDetail = query({
             odometer: assignment.odometer,
           }
         : null,
-      activity: activity.map((row) => ({
-        id: row._id,
-        action: row.action as ActivityAction,
-        summary: row.summary,
-        actorName: row.actorName,
-        changes: row.changes ?? [],
-        createdAt: row.createdAt,
-      })),
+      activity: activity
+        .map((raw) => visibleActivity(context.role, raw))
+        .map((row) => ({
+          id: row._id,
+          action: row.action as ActivityAction,
+          summary: row.summary,
+          actorName: row.actorName,
+          changes: row.changes ?? [],
+          createdAt: row.createdAt,
+        })),
       vehicleOptions: vehicles.map((vehicle) => ({
         id: vehicle._id,
         unitNumber: vehicle.unitNumber,
         label: `${vehicle.unitNumber} · ${vehicle.make} ${vehicle.model}`,
-        taken: Boolean(vehicle.assignedDriverId) && vehicle.assignedDriverId !== args.driverId,
+        taken:
+          Boolean(vehicle.assignedDriverId) &&
+          vehicle.assignedDriverId !== args.driverId,
       })),
     };
   },
 });
 
+/** Only accounts already admitted by the owner can be linked to a driver record. */
+async function linkedDriverAccount(
+  ctx: MutationCtx,
+  orgId: Id<"organizations">,
+  email?: string,
+) {
+  if (!email) return undefined;
+  const members = await ctx.db
+    .query("memberships")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .collect();
+  for (const member of members) {
+    if (member.role !== "driver") continue;
+    const user = await ctx.db.get(member.userId);
+    if (user?.email?.trim().toLowerCase() === email.trim().toLowerCase())
+      return user._id;
+  }
+  return undefined;
+}
+
 export const createDriver = mutation({
   args: { ...driverInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite cadastrar motoristas.");
+    requireRole(
+      context.role,
+      FLEET_WRITE_ROLES,
+      "Seu papel não permite cadastrar motoristas.",
+    );
     await limit(ctx, context.orgId, "createDriver");
 
     const clean = driverFromInput(args as unknown as Record<string, unknown>);
@@ -315,6 +386,7 @@ export const createDriver = mutation({
     const now = Date.now();
     const driverId = await ctx.db.insert("drivers", {
       ...clean,
+      accountUserId: await linkedDriverAccount(ctx, context.orgId, clean.email),
       orgId: context.orgId,
       createdBy: context.userId,
       createdAt: now,
@@ -369,7 +441,11 @@ export const updateDriver = mutation({
   args: { driverId: v.id("drivers"), ...driverInput },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, FLEET_WRITE_ROLES, "Seu papel não permite editar motoristas.");
+    requireRole(
+      context.role,
+      FLEET_WRITE_ROLES,
+      "Seu papel não permite editar motoristas.",
+    );
 
     const existing = await ctx.db.get(args.driverId);
     if (!existing || existing.orgId !== context.orgId) {
@@ -391,7 +467,11 @@ export const updateDriver = mutation({
       }
     }
 
-    const patch: Record<string, unknown> = { ...clean, updatedAt: Date.now() };
+    const patch: Record<string, unknown> = {
+      ...clean,
+      accountUserId: await linkedDriverAccount(ctx, context.orgId, clean.email),
+      updatedAt: Date.now(),
+    };
     for (const key of [
       "phone",
       "email",
@@ -407,10 +487,15 @@ export const updateDriver = mutation({
       "depot",
       "notes",
     ]) {
-      if ((clean as Record<string, unknown>)[key] === undefined) patch[key] = undefined;
+      if ((clean as Record<string, unknown>)[key] === undefined)
+        patch[key] = undefined;
     }
 
-    const changes = diffFields(existing as unknown as Record<string, unknown>, clean, DRIVER_TRACKED_FIELDS);
+    const changes = diffFields(
+      existing as unknown as Record<string, unknown>,
+      clean,
+      DRIVER_TRACKED_FIELDS,
+    );
     await ctx.db.patch(existing._id, patch);
 
     // Keep the vehicle assignment in sync with the form (one source of truth).
@@ -429,7 +514,10 @@ export const updateDriver = mutation({
       if (!nextVehicle || nextVehicle.orgId !== context.orgId) {
         throw new ConvexError("Esse veículo não está no seu registro.");
       }
-      if (nextVehicle.assignedDriverId && nextVehicle.assignedDriverId !== existing._id) {
+      if (
+        nextVehicle.assignedDriverId &&
+        nextVehicle.assignedDriverId !== existing._id
+      ) {
         throw new ConvexError(
           `A unidade ${nextVehicle.unitNumber} já está vinculada a outro motorista. Libere-a antes de mover ${clean.firstName} ${clean.lastName}.`,
         );
@@ -437,13 +525,17 @@ export const updateDriver = mutation({
       if (currentVehicle) {
         await ctx.db.patch(currentVehicle._id, {
           assignedDriverId: undefined,
-          status: currentVehicle.status === "assigned" ? "available" : currentVehicle.status,
+          status:
+            currentVehicle.status === "assigned"
+              ? "available"
+              : currentVehicle.status,
           updatedAt: Date.now(),
         });
       }
       await ctx.db.patch(nextVehicle._id, {
         assignedDriverId: existing._id,
-        status: nextVehicle.status === "available" ? "assigned" : nextVehicle.status,
+        status:
+          nextVehicle.status === "available" ? "assigned" : nextVehicle.status,
         updatedAt: Date.now(),
       });
       changes.push({
@@ -454,10 +546,17 @@ export const updateDriver = mutation({
     } else if (!nextVehicleId && currentVehicle) {
       await ctx.db.patch(currentVehicle._id, {
         assignedDriverId: undefined,
-        status: currentVehicle.status === "assigned" ? "available" : currentVehicle.status,
+        status:
+          currentVehicle.status === "assigned"
+            ? "available"
+            : currentVehicle.status,
         updatedAt: Date.now(),
       });
-      changes.push({ field: "Veículo vinculado", from: `Unidade ${currentVehicle.unitNumber}`, to: "—" });
+      changes.push({
+        field: "Veículo vinculado",
+        from: `Unidade ${currentVehicle.unitNumber}`,
+        to: "—",
+      });
     }
 
     const statusChanged = existing.status !== clean.status;
@@ -483,7 +582,11 @@ export const deleteDriver = mutation({
   args: { driverId: v.id("drivers") },
   handler: async (ctx, args) => {
     const context = await requireOrg(ctx);
-    requireRole(context.role, COMPANY_ROLES, "Somente proprietário ou administrador pode remover motoristas.");
+    requireRole(
+      context.role,
+      COMPANY_ROLES,
+      "Somente proprietário ou administrador pode remover motoristas.",
+    );
 
     const driver = await ctx.db.get(args.driverId);
     if (!driver || driver.orgId !== context.orgId) {
@@ -496,7 +599,7 @@ export const deleteDriver = mutation({
       .withIndex("by_org_driver", (q) =>
         q.eq("orgId", context.orgId).eq("assignedDriverId", args.driverId),
       )
-      .take(20);
+      .collect();
     for (const vehicle of assignedVehicles) {
       await ctx.db.patch(vehicle._id, {
         assignedDriverId: undefined,

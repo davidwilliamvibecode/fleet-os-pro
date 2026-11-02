@@ -73,7 +73,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       </span>
       {compact ? null : (
         <span className="leading-tight">
-          <span className="block text-sm font-semibold tracking-tight text-ink">Fleet Command</span>
+          <span className="block text-sm font-semibold tracking-tight text-ink">Fleet OS Pro</span>
           <span className="block text-[0.7rem] text-muted-foreground">gestão de frota</span>
         </span>
       )}
@@ -364,7 +364,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
     return [parts[0] ?? "dashboard", parts[1] ?? null];
   }, [location.pathname]);
 
-  if (isLoading) return <LoadingNote label="Abrindo o Fleet Command…" />;
+  if (isLoading) return <LoadingNote label="Abrindo o Fleet OS Pro…" />;
   // Usuários novos (incluindo convidados) ainda não têm empresa — vão para o
   // assistente de configuração. A checagem do pathname é essencial: a própria
   // página de setup renderiza este shell, então um redirecionamento sem
@@ -376,7 +376,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const sidebarInner = (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-3.5">
-        <Link to="/dashboard" onClick={() => setMobileOpen(false)} aria-label="Início do Fleet Command">
+        <Link to="/dashboard" onClick={() => setMobileOpen(false)} aria-label="Início do Fleet OS Pro">
           <BrandMark />
         </Link>
       </div>
@@ -428,7 +428,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
               <SheetHeader className="sr-only">
-                <SheetTitle>Navegação do Fleet Command</SheetTitle>
+                <SheetTitle>Navegação do Fleet OS Pro</SheetTitle>
               </SheetHeader>
               {sidebarInner}
             </SheetContent>
@@ -436,7 +436,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
           <nav aria-label="Trilha de navegação" className="hidden items-center gap-1.5 text-sm lg:flex">
             <Link to="/dashboard" className="text-muted-foreground hover:text-ink">
-              Fleet Command
+              Fleet OS Pro
             </Link>
             <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
             <span className="font-medium text-ink">
@@ -462,7 +462,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
         <footer className="border-t border-border/70 px-4 py-4 sm:px-6">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>Fleet Command · {org?.name ?? "Sua empresa"} · os registros são privados da sua empresa.</span>
+            <span>Fleet OS Pro · {org?.name ?? "Sua empresa"} · os registros são privados da sua empresa.</span>
             <Link to="/termos" className="transition-colors hover:text-ink">
               Termos de uso
             </Link>

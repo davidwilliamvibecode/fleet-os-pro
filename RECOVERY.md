@@ -1,95 +1,23 @@
-# Plano de recuperação — Fleet Command
+# Operação e recuperação — Fleet OS Pro
 
-Documento operacional para o dia em que algo der errado: app fora do ar, deploy
-que quebrou, erro em produção ou pedido de exclusão de dados (LGPD).
+## Falha de acesso
 
-## Papéis
+Consultar Configurações → Dados → Diagnóstico. Se a interface não abrir, consultar o último build do Cloudflare e os logs do deployment `mellow-tapir-783` no Convex. Não criar outro projeto para corrigir uma falha de deploy.
 
-| Papel | Responsabilidade |
-|---|---|
-| Proprietário da empresa | Decide sobre dados da própria empresa; é quem solicita exclusão e exportação |
-| Administrador | Opera a empresa; vê diagnóstico de erros e livro de registros |
-| Operador da plataforma (você) | Responder por incidentes técnicos, deploys e restauração |
+Executar `npm ci` e `npm run check` no mesmo commit da `main`. Um novo `git revert` do commit defeituoso preserva o histórico; conferir efeitos de alterações de schema antes de publicar. Validar o login e um registro após cada implantação.
 
-## 1. App fora do ar / erro em produção
+## Senha esquecida
 
-**Sintoma:** página não carrega, erro do Convex ("Could not find public path",
-"Internal Server Error") ou fonctionnalité quebrada.
+Não há recuperação por e-mail neste MVP. Antes de qualquer alteração administrativa, confirmar o titular por um canal já registrado. Não pedir senha antiga, não aceitar apenas a alegação de posse do e-mail e não editar hashes manualmente. Após confirmar o titular por um canal conhecido, o operador autenticado no painel Convex pode executar a ação interna `support.resetPassword`, conferindo `userId`, e-mail e nova senha. Ela usa a API do Convex Auth para gerar o hash e invalida todas as sessões existentes. Não há endpoint público para esse procedimento. Não registrar a nova senha em chamados ou mensagens abertas; combinar a entrega por canal privado e orientar o titular a usar uma senha exclusiva. O fluxo está coberto por teste automatizado.
 
-**Diagnóstico (5 min):**
+## Cópias dos dados
 
-1. Abrir **Configurações › Dados › Diagnóstico de erros** — a lista mostra a
-   mensagem, a origem e a hora do último erro capturado.
-2. Rodar localmente o health check:
-   ```bash
-   bunx convex dev --once   # confirma que o backend sobe e o schema está íntegro
-   bunx tsc -b --noEmit     # confirma que o frontend está consistente
-   bun run test             # confirma as regras de segurança (24 testes: autorização,
-                            # cotas de uso e isolamento entre empresas)
-   ```
+O proprietário ou administrador pode baixar CSVs de veículos, motoristas, manutenções, documentos e histórico em Configurações → Dados. Arquivos abrem no Excel ou LibreOffice; podem conter dados pessoais, portanto devem ser guardados com acesso restrito.
 
-**Se o backend responde e o frontend falha:** o problema é no código do
-frontend — reverta o último deploy.
+Não existe importador automático de CSV. A reconstrução pelo CSV é manual. Exportação não equivale a backup restaurável do banco. Para uma cópia integral, usar as opções de exportação do deployment no Convex conforme disponibilidade do plano, antes de operações destrutivas. A restauração de um export integral afeta o deployment inteiro, inclusive outras empresas; nunca executá-la como se fosse restauração de um único cliente.
 
-**Reverter um deploy:**
+## Exclusão
 
-```bash
-# O histórico fica no histórico de commits; reverter é um commit novo.
-# Grave o código em que o app funcionava:
-git revert <commit-do-deploy-que-quebrou>   # ou:
-git checkout <commit-bom> -- src/            # copia só o frontend
-```
+A remoção de veículo apaga seus registros de manutenção e documentos. Remover motorista desvincula veículos. Limpar dados da frota remove os registros operacionais da empresa, mantendo empresa, equipe e um registro da ação de limpeza. Não é exclusão de conta ou de todo o espaço. Solicitações de encerramento e direitos dos titulares precisam ser tratadas pelo responsável da empresa com apoio do operador, conforme o caso.
 
-Depois: `bunx convex dev --once && bunx tsc -b --noEmit` e testar o login.
-
-**Se o Convex (plataforma) estiver instável:** não há ação do nosso lado — o
-backend é gerenciado por ele. Converse com o suporte da plataforma.
-
-## 2. Exclusão de dados (pedido de titular — LGPD)
-
-**Prazo legal: responder em até 15 dias.**
-
-O titular pede para a **empresa controladora** (o cliente), que aciona a
-plataforma. Caminhos possíveis:
-
-- **Exclusão só de um cadastro:** o Proprietário deleta o veículo/motorista em
-  Fleet Command; a exclusão é em cascata (veículo leva manutenções e documentos).
-- **Exporta antes:** Configurações › Dados › **Exportar dados** baixa os CSVs.
-  Exija o export **antes** de qualquer limpeza — sem o CSV, o dado vai embora.
-- **Exclusão total do espaço:** Configurações › Dados › *Limpar dados da frota*
-  (remove veículos, motoristas, manutenções, documentos e livro de registros;
-  mantém empresa e integrantes). Irreversível.
-- **Exclusão da conta inteira / encerramento:** abrir chamado com a plataforma.
-
-> O backup do banco é do Convex. O backup **do cliente** é o CSV — por isso a
-> exportação precisa ser rotineira, não uma medida de emergência.
-
-## 3. Restauração a partir do CSV
-
-Não há importador automático hoje. Se um cliente precisar reimportar após um
-incidente, o caminho é:
-
-1. O Proprietário exporta (antes da limpeza) ou usa o CSV guardado.
-2. A reimportação hoje é **manual** (cadastro por tela) — não automatizado.
-   Para volumes grandes, combine com o cliente caso a caso.
-
-## 4. Prevenção (o que já está no lugar)
-
-| Medida | Onde |
-|---|---|
-| Isolamento por empresa em toda query | `src/convex/fleet.ts` (`requireOrg`) |
-| Segredos só em ambiente | `emailOtp.ts` lê `process.env`, sem literal |
-| Poda de convidados abandonados (24 h) | `housekeeping.ts` + `crons.ts` |
-| Exportação de dados pelo cliente | `src/convex/export.ts` |
-| Captura de erros | `src/convex/errors.ts` + hook no cliente |
-| Testes das regras de autorização | `src/convex/access.test.ts` (`bun run test`) |
-| Teste de isolamento entre empresas (executa as functions reais) | `src/tests/tenant-isolation.test.ts` |
-| Testes das cotas de uso | `src/convex/rateLimit.test.ts` |
-
-## 5. O que NÃO temos (honesto)
-
-- **Sem importador de backup** — a restauração é manual.
-- **Sem monitoramento externo** — o diagnóstico é interno ao app; se o app
-  inteiro não carrega, não há como ver a lista.
-- **Sem teste de carga** — validado por leitura de índices, não por medição.
-- **Sem plano de continuidade testado** em ambiente de homologação.
+Confirmar identidade, escopo e necessidade de exportação antes de exclusões. As exclusões pela interface são definitivas; não prometer desfazer.

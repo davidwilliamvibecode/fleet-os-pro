@@ -5,18 +5,18 @@ import { cn } from "@/lib/utils";
 
 type Section = { title: string; body: string[] };
 
-const UPDATED = "Última atualização: 28 de setembro de 2026";
+const UPDATED = "Última atualização: 2 de novembro de 2026";
 
 const INTRO_TERMS =
-  "Este Termo regula o uso do Fleet Command, plataforma de gestão de frota (veículos, motoristas, manutenções e documentos) oferecida a empresas. Ao criar uma conta ou convidar integrantes, você concorda com o que está descrito aqui.";
+  "Este Termo regula o uso do Fleet OS Pro, plataforma de gestão de frota (veículos, motoristas, manutenções e documentos) oferecida a empresas. Ao criar uma conta ou convidar integrantes, você concorda com o que está descrito aqui.";
 
 const SECTIONS_TERMS: Section[] = [
   {
     title: "Sobre o serviço",
     body: [
-      "O Fleet Command é um sistema de registro e acompanhamento de frota: cadastro de veículos e motoristas, controle de manutenções, vencimento de documentos, indicadores e histórico de atividades.",
+      "O Fleet OS Pro é um sistema de registro e acompanhamento de frota: cadastro de veículos e motoristas, controle de manutenções, vencimento de documentos, indicadores e histórico de atividades.",
       "O serviço é prestado a empresas (pessoas jurídicas), que são responsáveis pelas contas, integrantes e dados cadastrados em seu espaço de trabalho.",
-      "► O Fleet Command é uma ferramenta de organização interna e não substitui obrigações legais, fiscais ou regulatórias do contratante (por exemplo, licenciamento, seguro ou exigências trabalhistas).",
+      "► O Fleet OS Pro é uma ferramenta de organização interna e não substitui obrigações legais, fiscais ou regulatórias do contratante (por exemplo, licenciamento, seguro ou exigências trabalhistas).",
     ],
   },
   {
@@ -32,7 +32,7 @@ const SECTIONS_TERMS: Section[] = [
     title: "Responsabilidades do contratante",
     body: [
       "Fornecer informações verdadeiras sobre veículos, motoristas e documentos.",
-      "Obter consentimento dos motoristas antes de cadastrar dados pessoais deles no sistema (nome, contato, CNH, entre outros), conforme a LGPD.",
+      "Definir uma base legal adequada e informar os motoristas sobre o tratamento antes de cadastrar dados pessoais, como contato e CNH.",
       "Manter a confidencialidade das informações registradas e o uso restrito a finalidades legítimas da operação.",
       "► Você declara ser responsável legal pelos dados que insere no sistema e confirma que os titulares (por exemplo, motoristas) foram informados sobre esse tratamento.",
     ],
@@ -48,7 +48,7 @@ const SECTIONS_TERMS: Section[] = [
     title: "Disponibilidade e suporte",
     body: [
       "Buscamos manter o serviço disponível de forma contínua, mas interrupções para manutenção ou fatores fora do nosso controle podem ocorrer.",
-      "Recomendamos exportar ou manter cópias dos documentos críticos fora do sistema (o Fleet Command não é repositório oficial de documentos veiculares).",
+      "Recomendamos exportar ou manter cópias dos documentos críticos fora do sistema (o Fleet OS Pro não é repositório oficial de documentos veiculares).",
     ],
   },
   {
@@ -75,13 +75,13 @@ const SECTIONS_TERMS: Section[] = [
 ];
 
 const INTRO_PRIVACY =
-  "Esta política explica, em linguagem direta, como o Fleet Command trata dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD). Para fins de LGPD, a empresa contratante (seu espaço de trabalho) atua como controladora dos dados de seus motoristas e integrantes; o Fleet Command atua como operador, tratando dados apenas conforme instruções do serviço.";
+  "Esta política explica, em linguagem direta, como o Fleet OS Pro trata dados pessoais, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD). Para fins de LGPD, a empresa contratante (seu espaço de trabalho) atua como controladora dos dados de seus motoristas e integrantes; o Fleet OS Pro atua como operador, tratando dados apenas conforme instruções do serviço.";
 
 const SECTIONS_PRIVACY: Section[] = [
   {
     title: "Quais dados tratamos",
     body: [
-      "Conta de acesso: nome, e-mail (usado para o código de login) e telefone, quando informado.",
+      "Conta de acesso: nome, e-mail (usado como identificador de login) e telefone, quando informado.",
       "Dados cadastrais da empresa: nome, moeda, unidade de distância e preferências do espaço.",
       "Dados de motoristas inseridos pela empresa: nome, contato, e-mail, CNH (número, categoria e validade) e situação.",
       "Dados de operação: veículos, manutenções, documentos e histórico de atividades (quem criou ou alterou registros).",
@@ -90,7 +90,7 @@ const SECTIONS_PRIVACY: Section[] = [
   {
     title: "Para que usamos (finalidades)",
     body: [
-      "Autenticar o acesso e proteger contas, incluindo envio do código de verificação por e-mail.",
+      "Autenticar o acesso por e-mail e senha. A senha é armazenada como hash pelo serviço de autenticação; não enviamos códigos de acesso por e-mail nesta versão.",
       "Operar as funcionalidades do sistema: painel, alertas de vencimento, prontuários e histórico.",
       "Auditar ações dentro do espaço de trabalho (livro de registros) para rastreabilidade interna.",
       "► Não usamos seus dados para publicidade e não vendemos dados pessoais a terceiros.",
@@ -100,22 +100,22 @@ const SECTIONS_PRIVACY: Section[] = [
     title: "Base legal",
     body: [
       "O tratamento se apoia na execução de contrato (art. 7º, V — prestar o serviço contratado), no legítimo interesse para segurança da plataforma (art. 7º, IX) e na obrigação de cumprir a lei quando aplicável.",
-      "Quando a empresa cadastra dados de motoristas, ela deve ter base legal para isso — em regra, o consentimento do titular ou a execução de políticas internas próprias.",
+      "Quando a empresa cadastra dados de motoristas, ela deve ter base legal para isso — conforme a finalidade e a legislação aplicável. Políticas internas, isoladamente, não substituem uma base legal.",
     ],
   },
   {
     title: "Quem pode ver os dados",
     body: [
       "O isolamento é por empresa: integrantes só acessam o espaço da própria organização.",
-      "Dados sensíveis de remuneração (valor por dia) são visíveis apenas a papéis autorizados pela empresa (proprietário, administrador, gestor de frota e financeiro).",
+      "Dados de remuneração são visíveis apenas a papéis autorizados pela empresa (proprietário, administrador, gestor de frota e financeiro).",
       "Integrantes com papel de motorista veem apenas o próprio prontuário completo; dados de contato e CNH de colegas ficam ocultos.",
-      "Nenhum acesso indevido entre empresas é possível por construção: todas as consultas verificam a organização do usuário autenticado.",
+      "As consultas e alterações de dados verificam a empresa do usuário autenticado. Testes automatizados verificam o isolamento entre empresas.",
     ],
   },
   {
     title: "Compartilhamento e segurança",
     body: [
-      "Compartilhamos o mínimo necessário com provedores de infraestrutura (banco de dados na nuvem Convex e serviço de envio de e-mail para códigos de login), sempre protegidos por contrato e chaves de acesso.",
+      "Usamos Convex para autenticação e armazenamento dos dados e Cloudflare Pages para hospedar a interface. O acesso técnico à infraestrutura é restrito ao operador da plataforma.",
       "Medidas de segurança: transporte criptografado (HTTPS), segredos gerenciados em ambiente, rate limit no fluxo de login, isolamento por organização e auditoria de alterações.",
       "► Nenhum sistema é infalível; mantemos práticas de mitigação e resposta a incidentes proporcional ao risco.",
     ],
@@ -124,7 +124,7 @@ const SECTIONS_PRIVACY: Section[] = [
     title: "Retenção e exclusão",
     body: [
       "Os dados permanecem enquanto a empresa usar o serviço. A exclusão de veículos, motoristas e documentos remove os registros associados de forma definitiva.",
-      "Contas de convidados criadas há mais de 7 dias que nunca se vinculam a uma empresa são removidas automaticamente, junto com suas sessões.",
+      "O acesso é feito por conta individual. Não há acesso anônimo aos dados das empresas.",
       "A empresa pode solicitar a exclusão completa do seu espaço a qualquer momento; a operação apaga todos os dados e é irreversível.",
     ],
   },
@@ -132,22 +132,21 @@ const SECTIONS_PRIVACY: Section[] = [
     title: "Direitos dos titulares",
     body: [
       "Titulares de dados (por exemplo, motoristas) podem solicitar à empresa contratante: confirmação de tratamento, acesso, correção, portabilidade, anonimização ou eliminação de dados desnecessários e informação sobre compartilhamentos.",
-      "► O canal para exercer direitos é a empresa que registrou os dados (controladora). O Fleet Command apoia o atendimento oferecendo exportação e exclusão dos registros.",
+      "► O canal para exercer direitos é a empresa que registrou os dados (controladora). O Fleet OS Pro apoia o atendimento oferecendo exportação e exclusão dos registros.",
     ],
   },
   {
-    title: "Controladora e encarregado",
+    title: "Responsáveis e canais de atendimento",
     body: [
-      "► Preencha os dados abaixo antes de usar esta política comercialmente. O art. 41 da LGPD exige um encarregado (DPO) nomeado, com canal de contato publicado.",
-      "Controladora: [RAZÃO SOCIAL DA EMPRESA], inscrita no CNPJ sob nº [CNPJ], com sede na [ENDEREÇO COMPLETO]. É a empresa que contrata o Fleet Command e decide sobre os dados dos seus motoristas.",
-      "Encarregado pelo tratamento de dados (DPO): [NOME DO ENCARREGADO] — [E-MAIL DO DPO] — [TELEFONE/ENDEREÇO].",
-      "Operador: o Fleet Command, que trata os dados estritamente conforme as instruções da controladora e para executar o serviço contratado.",
+      "A empresa que cadastra os dados dos motoristas é responsável por informar sua identificação e um canal para solicitações dos titulares. Os dados de contato da empresa podem ser mantidos em Configurações → Empresa.",
+      "Os dados do fornecedor do Fleet OS Pro e seu canal de suporte devem constar da contratação entregue ao cliente. Solicitações relacionadas à conta ou à infraestrutura devem ser encaminhadas a esse contato.",
+      "A indicação de encarregado depende do enquadramento aplicável. Agentes de pequeno porte abrangidos pela regulamentação da ANPD podem ser dispensados da indicação, mas devem manter um canal de comunicação com os titulares.",
     ],
   },
   {
     title: "Contato",
     body: [
-      "Dúvidas sobre esta política, solicitações de exclusão ou relatos de incidentes podem ser feitos pelo e-mail de contato informado no rodapé do sistema ou pelo canal de suporte da plataforma.",
+      "Dúvidas sobre esta política, solicitações de exclusão ou relatos de incidentes podem ser feitos pelo contato da empresa controladora ou pelo canal de suporte informado na contratação do serviço.",
     ],
   },
 ];
@@ -193,8 +192,12 @@ function DocShell({
           <h1 className="mt-4 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             {title}
           </h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{intro}</p>
-          <p className="mt-4 font-mono text-xs text-muted-foreground">{UPDATED}</p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            {intro}
+          </p>
+          <p className="mt-4 font-mono text-xs text-muted-foreground">
+            {UPDATED}
+          </p>
         </header>
 
         <div className="mt-6 space-y-4">
@@ -236,7 +239,10 @@ function DocShell({
             <Link to="/termos" className="font-medium text-pen hover:underline">
               Termo de Uso
             </Link>
-            <Link to="/privacidade" className="font-medium text-pen hover:underline">
+            <Link
+              to="/privacidade"
+              className="font-medium text-pen hover:underline"
+            >
               Política de Privacidade
             </Link>
           </div>
